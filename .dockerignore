@@ -1,0 +1,35 @@
+# Ignore git configuration
+.git
+.gitignore
+
+# Ignore Docker related files in the build context
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Ignore Python cache and virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# CRITICAL: Ignore data directories to prevent baking models into the image
+data/
+models/
+downloads/
+cache/
+
+# Ignore IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore logs
+*.log

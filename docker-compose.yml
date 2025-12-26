@@ -1,0 +1,71 @@
+services:
+  # ---------------------------------------------------------------------------
+  # OPTION 1: x86 GPU (Active Default)
+  # Uses local image: speech-service:gpu-latest
+  # ---------------------------------------------------------------------------
+  # speech-service:
+  #   image: gitea.max.lan/dlaszlo/speech-service:gpu-latest
+  #   container_name: speech-service
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - huggingface_cache:/data/huggingface
+  #   environment:
+  #     - STT_MODEL_NAME=Systran/faster-distil-whisper-small.en
+  #     # Compute type: float16 or int8_float16 for GPU recommended
+  #     - STT_COMPUTE_TYPE=int8_float16
+  #     - TTS_MODEL_NAME=hexgrad/Kokoro-82M
+  #     - TTS_LANG_CODE=a
+  #     - HF_HOME=/data/huggingface
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # OPTION 2: x86 CPU
+  # Uses local image: speech-service:cpu-latest
+  # ---------------------------------------------------------------------------
+  speech-service:
+    image: gitea.max.lan/dlaszlo/speech-service:cpu-latest
+    container_name: speech-service
+    ports:
+      - "8000:8000"
+    volumes:
+      - huggingface_cache:/data/huggingface
+    environment:
+      - STT_MODEL_NAME=Systran/faster-distil-whisper-small.en
+      # Compute type: int8 is best for CPU
+      - STT_COMPUTE_TYPE=int8
+      - TTS_MODEL_NAME=hexgrad/Kokoro-82M
+      - TTS_LANG_CODE=a
+      - HF_HOME=/data/huggingface
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # OPTION 3: ARM CPU (Apple Silicon / Raspberry Pi)
+  # Uses local image: speech-service:arm-latest
+  # ---------------------------------------------------------------------------
+  # speech-service:
+  #   image: speech-service:arm-latest
+  #   container_name: speech-service
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - huggingface_cache:/data/huggingface
+  #   environment:
+  #     - STT_MODEL_NAME=Systran/faster-distil-whisper-small.en
+  #     # Compute type: int8 usually works well on ARM too
+  #     - STT_COMPUTE_TYPE=int8
+  #     - TTS_MODEL_NAME=hexgrad/Kokoro-82M
+  #     - TTS_LANG_CODE=a
+  #     - HF_HOME=/data/huggingface
+  #   restart: unless-stopped
+
+volumes:
+  huggingface_cache:
+    driver: local

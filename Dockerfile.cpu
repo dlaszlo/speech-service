@@ -1,0 +1,42 @@
+# Dockerfile.cpu - x86_64 CPU optimized
+FROM python:3.12-slim
+
+# Set environment
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        espeak-ng \
+        curl \
+        && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements/ /app/requirements/
+
+# Install CPU dependencies
+# Pointing to pytorch cpu index to avoid downloading huge CUDA wheels
+# We install torch/torchaudio FIRST explicitly from the CPU index to ensure we don't accidentally pull the PyPI (CUDA) version
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements/cpu.txt
+
+# Copy source code
+COPY . .
+
+# Environment variables
+ENV STT_MODEL_NAME="Systran/faster-distil-whisper-small.en"
+ENV TTS_MODEL_NAME="hexgrad/Kokoro-82M"
+ENV TTS_LANG_CODE="a"
+ENV HF_HOME="/data/huggingface"
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
