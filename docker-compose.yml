@@ -4,7 +4,7 @@ services:
   # Uses local image: speech-service:gpu-latest
   # ---------------------------------------------------------------------------
   # speech-service:
-  #   image: ghcr.io/dlaszlo/speech-service:gpu-latest
+  #   image: dlaszlo/speech-service:gpu-latest
   #   container_name: speech-service
   #   ports:
   #     - "8000:8000"
@@ -27,11 +27,11 @@ services:
   #   restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # OPTION 2: x86 CPU
-  # Uses local image: speech-service:cpu-latest
+  # OPTION 2: CPU (supports both x86_64 and ARM64)
+  # Uses multi-arch image: dlaszlo/speech-service:cpu-latest
   # ---------------------------------------------------------------------------
   speech-service:
-    image: ghcr.io/dlaszlo/speech-service:cpu-latest
+    image: dlaszlo/speech-service:cpu-latest
     container_name: speech-service
     ports:
       - "8000:8000"
@@ -48,10 +48,10 @@ services:
 
   # ---------------------------------------------------------------------------
   # OPTION 3: ARM CPU (Apple Silicon / Raspberry Pi)
-  # Uses local image: speech-service:arm-latest
+  # Uses the same multi-arch CPU image - Docker auto-selects the right architecture
   # ---------------------------------------------------------------------------
   # speech-service:
-  #   image: ghcr.io/dlaszlo/speech-service:arm-latest
+  #   image: dlaszlo/speech-service:cpu-latest
   #   container_name: speech-service
   #   ports:
   #     - "8000:8000"

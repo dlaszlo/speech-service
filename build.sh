@@ -4,40 +4,51 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-IMAGE_NAME="speech-service"
+REGISTRY="dlaszlo/speech-service"
 VERSION=$(cat VERSION)
 
-echo -e "${BLUE}Building ${IMAGE_NAME} version ${VERSION}...${NC}"
+echo -e "${BLUE}Building images version ${VERSION}...${NC}"
 
-build_and_tag() {
-    local variant=$1
-    local dockerfile=$2
-    local platform_arg=$3
+# Setup buildx just in case (needed for --platform with --load sometimes, or for caching optimization)
+docker buildx create --use --name speech-builder 2>/dev/null || docker buildx use speech-builder
 
-    echo -e "${GREEN}Building [${variant}] image...${NC}"
+# --- CPU Builds ---
 
-    cmd="docker build"
-    if [ -n "$platform_arg" ]; then
-        cmd="$cmd --platform $platform_arg"
-    fi
+# 1. CPU AMD64 (using Dockerfile.cpu)
+echo -e "${BLUE}Building CPU AMD64 variant (Dockerfile.cpu)...${NC}"
+docker buildx build \
+    --platform linux/amd64 \
+    --load \
+    -f Dockerfile.cpu \
+    -t "${REGISTRY}:cpu-amd64-${VERSION}" \
+    -t "${REGISTRY}:cpu-amd64-latest" \
+    .
+echo -e "${GREEN}✓ CPU AMD64 built.${NC}"
 
-    tag_ver="${IMAGE_NAME}:${variant}-${VERSION}"
-    tag_latest="${IMAGE_NAME}:${variant}-latest"
+# 2. CPU ARM64 (using Dockerfile.arm)
+echo -e "${BLUE}Building CPU ARM64 variant (Dockerfile.arm)...${NC}"
+docker buildx build \
+    --platform linux/arm64 \
+    --load \
+    -f Dockerfile.arm \
+    -t "${REGISTRY}:cpu-arm64-${VERSION}" \
+    -t "${REGISTRY}:cpu-arm64-latest" \
+    .
+echo -e "${GREEN}✓ CPU ARM64 built.${NC}"
 
-    cmd="$cmd -f $dockerfile -t $tag_ver -t $tag_latest ."
+# --- GPU Build ---
 
-    echo -e "Executing: $cmd"
-    eval $cmd
-}
-
-build_and_tag "gpu" "Dockerfile.gpu" ""
-build_and_tag "cpu" "Dockerfile.cpu" ""
-
-echo -e "${BLUE}Setting up QEMU for ARM cross-compilation...${NC}"
-docker run --privileged --rm tonistiigi/binfmt --install all
-
-build_and_tag "arm" "Dockerfile.arm" "linux/arm64"
+# 3. GPU AMD64 (using Dockerfile.gpu)
+echo -e "${BLUE}Building GPU variant (Dockerfile.gpu)...${NC}"
+docker buildx build \
+    --platform linux/amd64 \
+    --load \
+    -f Dockerfile.gpu \
+    -t "${REGISTRY}:gpu-${VERSION}" \
+    -t "${REGISTRY}:gpu-latest" \
+    .
+echo -e "${GREEN}✓ GPU built.${NC}"
 
 echo -e "${BLUE}---------------------------------------${NC}"
-echo -e "${BLUE}Build Complete! Images created:${NC}"
-docker images | grep "${IMAGE_NAME}" | head -n 10
+echo -e "${BLUE}Build complete! Images are loaded into your local Docker daemon.${NC}"
+echo -e "${GREEN}Run ./push.sh to push images and manifests to Docker Hub.${NC}"

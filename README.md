@@ -40,7 +40,7 @@ Create or edit your `docker-compose.yml` file and select the appropriate service
 ```yaml
 services:
   speech-service:
-    image: ghcr.io/dlaszlo/speech-service:gpu-latest
+    image: dlaszlo/speech-service:gpu-latest
     container_name: speech-service
     ports:
       - "8000:8000"
@@ -67,37 +67,14 @@ volumes:
     driver: local
 ```
 
-#### Option 2: CPU (x86_64)
+#### Option 2: CPU (x86_64 & ARM64)
+
+The CPU image supports both x86_64 and ARM64 (Raspberry Pi / Apple Silicon) automatically.
 
 ```yaml
 services:
   speech-service:
-    image: ghcr.io/dlaszlo/speech-service:cpu-latest
-    container_name: speech-service
-    ports:
-      - "8000:8000"
-    volumes:
-      - huggingface_cache:/data/huggingface
-    environment:
-      - STT_MODEL_NAME=Systran/faster-distil-whisper-small.en
-      # Compute type: int8 is best for CPU
-      - STT_COMPUTE_TYPE=int8
-      - TTS_MODEL_NAME=hexgrad/Kokoro-82M
-      - TTS_LANG_CODE=a
-      - HF_HOME=/data/huggingface
-    restart: unless-stopped
-
-volumes:
-  huggingface_cache:
-    driver: local
-```
-
-#### Option 3: ARM CPU (Raspberry Pi / Apple Silicon)
-
-```yaml
-services:
-  speech-service:
-    image: ghcr.io/dlaszlo/speech-service:arm-latest
+    image: dlaszlo/speech-service:cpu-latest
     container_name: speech-service
     ports:
       - "8000:8000"
@@ -181,9 +158,3 @@ You can switch the TTS language or model version at runtime.
 *   `lang_code`: The language code (e.g., `b` for British English).
 *   `model_id`: (Optional) The Hugging Face model repository ID.
 
-## Viewing Logs
-
-You can monitor the service's output, including model loading progress and API requests, using:
-```bash
-docker-compose logs -f
-```
