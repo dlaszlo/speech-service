@@ -2,11 +2,12 @@
 
 IMAGE_NAME="speech-service"
 VERSION=$(cat VERSION)
-REGISTRY="gitea.max.lan/dlaszlo/speech-service"
+REGISTRY="ghcr.io/dlaszlo/speech-service"
 VARIANTS=("gpu" "cpu" "arm")
 
-echo "Logging in to registry..."
-docker login gitea.max.lan
+echo "Logging in to GitHub Container Registry..."
+echo "If prompted, use your GitHub personal access token with 'write:packages' scope."
+docker login ghcr.io
 
 for variant in "${VARIANTS[@]}"; do
     LOCAL_TAG_VER="${IMAGE_NAME}:${variant}-${VERSION}"

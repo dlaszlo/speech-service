@@ -4,7 +4,7 @@ services:
   # Uses local image: speech-service:gpu-latest
   # ---------------------------------------------------------------------------
   # speech-service:
-  #   image: gitea.max.lan/dlaszlo/speech-service:gpu-latest
+  #   image: ghcr.io/dlaszlo/speech-service:gpu-latest
   #   container_name: speech-service
   #   ports:
   #     - "8000:8000"
@@ -31,7 +31,7 @@ services:
   # Uses local image: speech-service:cpu-latest
   # ---------------------------------------------------------------------------
   speech-service:
-    image: gitea.max.lan/dlaszlo/speech-service:cpu-latest
+    image: ghcr.io/dlaszlo/speech-service:cpu-latest
     container_name: speech-service
     ports:
       - "8000:8000"
@@ -51,7 +51,7 @@ services:
   # Uses local image: speech-service:arm-latest
   # ---------------------------------------------------------------------------
   # speech-service:
-  #   image: gitea.max.lan/dlaszlo/speech-service:arm-latest
+  #   image: ghcr.io/dlaszlo/speech-service:arm-latest
   #   container_name: speech-service
   #   ports:
   #     - "8000:8000"

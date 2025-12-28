@@ -1,6 +1,6 @@
 # Speech Service (STT & TTS)
 
-This project provides a local, Dockerized API for both **Speech-to-Text (STT)** and **Text-to-Speech (TTS)**.
+This project provides a local, Dockerized REST API with OpenAI compatible endpoints for both **Speech-to-Text (STT)** and **Text-to-Speech (TTS)**.
 
 ## Features
 
@@ -27,19 +27,6 @@ This project provides a local, Dockerized API for both **Speech-to-Text (STT)** 
 *   **Docker Compose**: Part of modern Docker Desktop installations.
 *   **NVIDIA Container Toolkit** (for GPU support): If you wish to use a GPU, you must install the toolkit. [Official Installation Guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 
-## How to Build
-
-We provide a build script to generate Docker images for all supported platforms (GPU, CPU, ARM).
-
-1.  **Check Version**: The current version is defined in the `VERSION` file.
-2.  **Run Build Script**:
-    ```bash
-    ./build.sh
-    ```
-    This script will:
-    *   Build images for **GPU**, **CPU**, and **ARM**.
-    *   Tag them with the version number (e.g., `speech-service:gpu-0.1.0`) and `latest` (e.g., `speech-service:gpu-latest`).
-
 ## How to Run
 
 Using `docker-compose` is the recommended way to run this service.
@@ -53,7 +40,7 @@ Create or edit your `docker-compose.yml` file and select the appropriate service
 ```yaml
 services:
   speech-service:
-    image: gitea.max.lan/dlaszlo/speech-service:gpu-latest
+    image: ghcr.io/dlaszlo/speech-service:gpu-latest
     container_name: speech-service
     ports:
       - "8000:8000"
@@ -85,7 +72,7 @@ volumes:
 ```yaml
 services:
   speech-service:
-    image: gitea.max.lan/dlaszlo/speech-service:cpu-latest
+    image: ghcr.io/dlaszlo/speech-service:cpu-latest
     container_name: speech-service
     ports:
       - "8000:8000"
@@ -110,7 +97,7 @@ volumes:
 ```yaml
 services:
   speech-service:
-    image: gitea.max.lan/dlaszlo/speech-service:arm-latest
+    image: ghcr.io/dlaszlo/speech-service:arm-latest
     container_name: speech-service
     ports:
       - "8000:8000"
@@ -130,22 +117,6 @@ volumes:
     driver: local
 ```
 
-### 2. Start the Container
-
-Once you have configured `docker-compose.yml`, run:
-
-```bash
- docker-compose up -d
- ```
- The first time you run this, it will start the container. The model download will happen automatically when the container starts (or when you first use the API), caching files in the `huggingface_cache` volume.
-
-### 3. Stop the Service
-
-To stop the container run:
-```bash
-docker-compose down
-```
-
 ## API Usage
 
 The API is available at `http://localhost:8000`.
@@ -163,13 +134,12 @@ curl http://localhost:8000/health
 #### Transcribe an Audio File
 This endpoint is compatible with the OpenAI STT API.
 
-```bash
- curl -X POST "http://localhost:8000/v1/audio/transcriptions" \
+ ```bash
+  curl -X POST "http://localhost:8000/v1/audio/transcriptions" \
       -H "Content-Type: multipart/form-data" \
-      -F "file=@/path/to/your/audio.mp3" \
+      -F "file=@test_speech.wav" \
       -F "model=Systran/faster-distil-whisper-small.en"
-```
-*   `file=@/path/to/your/audio.mp3`: **Important:** Replace with the actual path to your audio file.
+  ```
 
 **Response:**
 ```json
@@ -190,15 +160,15 @@ curl -X POST "http://localhost:8000/v1/models/download" \
 #### Generate Speech from Text
 This endpoint is compatible with the OpenAI TTS API. It generates a WAV audio file.
 
-```bash
- curl -X POST "http://localhost:8000/v1/audio/speech" \
+ ```bash
+  curl -X POST "http://localhost:8000/v1/audio/speech" \
       -H "Content-Type: application/json" \
-      -d '{"model": "hexgrad/Kokoro-82M", "input": "Hello, this is a test of the local text to speech service.", "voice": "af_heart"}' \
-      --output speech.wav
-```
-*   `input`: The text to be synthesized.
-*   `voice`: The voice to use (e.g., `af_heart`).
-*   `--output speech.wav`: Saves the resulting audio to a file named `speech.wav`.
+      -d '{"model": "hexgrad/Kokoro-82M", "input": "The quick brown fox jumps over the lazy dog. This is a test of the English text to speech generation.", "voice": "af_sarah"}' \
+      --output test_speech.wav
+  ```
+ *   `input`: The text to be synthesized.
+ *   `voice`: The voice to use (e.g., `af_sarah`).
+ *   `--output test_speech.wav`: Saves the resulting audio to a file named `test_speech.wav`.
 
 #### Dynamically Load a Different TTS Model/Language
 You can switch the TTS language or model version at runtime.
