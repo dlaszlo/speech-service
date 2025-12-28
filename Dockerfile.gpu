@@ -17,13 +17,18 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
 # Copy requirements
 COPY requirements/ /app/requirements/
 
-# Install GPU dependencies
-# We rely on pip to pull standard wheels including CUDA libs where defined in requirements/gpu.txt
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements/gpu.txt
+# Install GPU dependencies using uv
+ENV UV_SYSTEM_PYTHON=1
+ENV UV_COMPILE_BYTECODE=1
+
+# We rely on uv/pip to pull standard wheels including CUDA libs where defined in requirements/gpu.txt
+RUN uv pip install --system --no-cache -r requirements/gpu.txt
 
 # Add LD_LIBRARY_PATH for NVIDIA libraries (cuDNN, cuBLAS) installed via pip
 ENV LD_LIBRARY_PATH="/usr/local/lib/python3.12/site-packages/nvidia/cudnn/lib:/usr/local/lib/python3.12/site-packages/nvidia/cublas/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
