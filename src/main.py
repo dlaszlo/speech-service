@@ -8,6 +8,7 @@ from typing import List
 from fastapi import FastAPI
 from .api.transcription import router as transcription_router
 from .api.text_to_speech import router as tts_router
+from .api.system import router as system_router
 from .core.stt_dependencies import get_model_state
 from .core.tts_dependencies import get_tts_model_state
 
@@ -22,16 +23,12 @@ def validate_environment_variables() -> List[str]:
     warnings = []
     
     stt_compute_type = os.getenv('STT_COMPUTE_TYPE', 'auto')
-    tts_compute_type = os.getenv('TTS_COMPUTE_TYPE', 'auto')
     tts_lang_code = os.getenv('TTS_LANG_CODE', 'a')
     device_override = os.getenv('DEVICE_OVERRIDE')
     
     valid_compute_types = ['auto', 'int8', 'float16', 'int8_float16', 'float32']
     if stt_compute_type not in valid_compute_types:
         warnings.append(f"Invalid STT_COMPUTE_TYPE '{stt_compute_type}'. Valid values: {valid_compute_types}")
-        
-    if tts_compute_type not in valid_compute_types:
-        warnings.append(f"Invalid TTS_COMPUTE_TYPE '{tts_compute_type}'. Valid values: {valid_compute_types}")
     
     if not tts_lang_code or len(tts_lang_code) != 1:
         warnings.append(f"Invalid TTS_LANG_CODE '{tts_lang_code}'. Should be a single character.")
@@ -68,10 +65,9 @@ async def lifespan(app: FastAPI):
         # Load TTS
         tts_lang_code = os.getenv("TTS_LANG_CODE", "a")
         tts_model_name = os.getenv("TTS_MODEL_NAME", "hexgrad/Kokoro-82M")
-        tts_compute_type = os.getenv("TTS_COMPUTE_TYPE", "auto")
-        logger.info(f"Startup: Loading TTS model '{tts_model_name}' (lang: {tts_lang_code}, compute_type: {tts_compute_type})")
+        logger.info(f"Startup: Loading TTS model '{tts_model_name}' (lang: {tts_lang_code})")
         try:
-            await tts_model_state.load_model(lang_code=tts_lang_code, model_id=tts_model_name, compute_type=tts_compute_type)
+            await tts_model_state.load_model(lang_code=tts_lang_code, model_id=tts_model_name)
             logger.info("TTS model loaded.")
         except Exception as e:
             logger.error(f"Failed to load TTS model: {e}")
@@ -85,22 +81,15 @@ async def lifespan(app: FastAPI):
     try:
         if stt_model_state.model is not None:
             logger.info("Clearing STT model")
-            try:
-                # Cleanup if methods exist (e.g. for some wrappers) - simpler check
-                pass 
-            finally:
-                stt_model_state.model = None
-                stt_model_state.model_name = None
+            stt_model_state.model = None
+            stt_model_state.model_name = None
         
         if tts_model_state.pipeline is not None:
             logger.info("Clearing TTS model")
-            try:
-                pass
-            finally:
-                tts_model_state.pipeline = None
-                tts_model_state.lang_code = None
-                tts_model_state.model_id = None
-            
+            tts_model_state.pipeline = None
+            tts_model_state.lang_code = None
+            tts_model_state.model_id = None
+        
         logger.info("Application shutdown completed")
     except Exception as e:
         logger.error(f"Error during shutdown: {e}")
@@ -114,5 +103,6 @@ app = FastAPI(
 
 app.include_router(transcription_router, tags=["Speech to Text"])
 app.include_router(tts_router, tags=["Text to Speech"])
+app.include_router(system_router, tags=["System"])
 
 logger.info("Application setup complete. API is ready.")

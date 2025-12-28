@@ -1,6 +1,6 @@
 services:
   # ---------------------------------------------------------------------------
-  # OPTION 1: x86 GPU (Active Default)
+  # OPTION 1: x86 GPU
   # Uses local image: speech-service:gpu-latest
   # ---------------------------------------------------------------------------
   # speech-service:
@@ -51,7 +51,7 @@ services:
   # Uses local image: speech-service:arm-latest
   # ---------------------------------------------------------------------------
   # speech-service:
-  #   image: speech-service:arm-latest
+  #   image: gitea.max.lan/dlaszlo/speech-service:arm-latest
   #   container_name: speech-service
   #   ports:
   #     - "8000:8000"

@@ -1,5 +1,4 @@
 -r common.txt
-# CPU specific
-optimum[onnxruntime]
-# Torch CPU version to save space (must be specified in pip install command usually, but we can list it here if using --extra-index-url)
+--extra-index-url https://download.pytorch.org/whl/cpu
 torch
+torchaudio

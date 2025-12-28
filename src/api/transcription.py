@@ -9,7 +9,6 @@ from ..services.stt_service import transcribe_audio
 from ..core.exceptions import ModelNotLoadedError, TranscriptionError, TimeoutError
 
 from ..schemas.stt import TranscriptionResponse, STTModelLoadRequest
-from ..schemas.system import HealthResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -23,9 +22,6 @@ async def transcribe_audio_endpoint(
     prompt: Optional[str] = Form(None),
     temperature: float = Form(0.0)
 ):
-    """
-    Transcribes audio using a Whisper model.
-    """
     if file.content_type:
         logger.debug(f"Received transcription request with content-type: {file.content_type}")
     
@@ -75,24 +71,3 @@ async def download_model_endpoint(request: STTModelLoadRequest):
         except Exception as e:
             logger.error(f"Failed to process model download request for '{request.model_name}': {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Failed to load/download model: {str(e)}")
-
-@router.get("/health", response_model=HealthResponse)
-async def health_check_endpoint():
-    from ..core.tts_dependencies import get_tts_model_state
-    tts_model_state = get_tts_model_state()
-    
-    stt_status = "ok" if model_state.model else "not_loaded"
-    tts_status = "ok" if tts_model_state.pipeline else "not_loaded"
-    
-    if stt_status == "ok" and tts_status == "ok":
-        overall_status = "healthy"
-    elif stt_status == "ok" or tts_status == "ok":
-        overall_status = "degraded"
-    else:
-        overall_status = "unhealthy"
-        
-    return HealthResponse(
-        status=overall_status,
-        stt_model=stt_status,
-        tts_model=tts_status
-    )

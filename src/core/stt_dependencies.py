@@ -31,9 +31,7 @@ class STTModelState:
             else:
                 self.device = "cpu"
             
-            if self.device == "cpu" and compute_type == "float16":
-                logger.warning("CPU detected with float16. Switching to int8.")
-                compute_type = "int8"
+
 
             try:
                 self.model = await asyncio.wait_for(

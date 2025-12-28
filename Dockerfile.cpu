@@ -19,10 +19,7 @@ RUN apt-get update && \
 COPY requirements/ /app/requirements/
 
 # Install CPU dependencies
-# Pointing to pytorch cpu index to avoid downloading huge CUDA wheels
-# We install torch/torchaudio FIRST explicitly from the CPU index to ensure we don't accidentally pull the PyPI (CUDA) version
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements/cpu.txt
 
 # Copy source code

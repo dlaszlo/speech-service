@@ -9,5 +9,4 @@ class TTSGenerationRequest(BaseModel):
 class TTSModelLoadRequest(BaseModel):
     """Request model for loading a specific TTS model/language."""
     lang_code: str # e.g., "a" for American English
-    model_id: str = "onnx-community/Kokoro-82M-v1.0-ONNX"
-    compute_type: str = "auto"
+    model_id: str = "hexgrad/Kokoro-82M"

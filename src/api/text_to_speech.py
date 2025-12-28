@@ -51,11 +51,11 @@ async def create_speech(request: TTSGenerationRequest):
 
 @router.post("/v1/models/tts/download")
 async def download_tts_model_endpoint(request: TTSModelLoadRequest):
-    logger.info(f"Received request to download/load TTS model: {request.model_id} for lang: {request.lang_code}, compute_type: {request.compute_type}")
+    logger.info(f"Received request to download/load TTS model: {request.model_id} for lang: {request.lang_code}")
     async with tts_model_state.synthesis_lock:
         try:
-            await tts_model_state.load_model(lang_code=request.lang_code, model_id=request.model_id, compute_type=request.compute_type)
-            return {"message": f"TTS Model '{request.model_id}' for lang '{request.lang_code}' (compute_type={request.compute_type}) loaded successfully."}
+            await tts_model_state.load_model(lang_code=request.lang_code, model_id=request.model_id)
+            return {"message": f"TTS Model '{request.model_id}' for lang '{request.lang_code}' loaded successfully."}
         except HTTPException as e:
             raise e
         except Exception as e:

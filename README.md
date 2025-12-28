@@ -1,8 +1,6 @@
 # Speech Service (STT & TTS)
 
 This project provides a local, Dockerized API for both **Speech-to-Text (STT)** and **Text-to-Speech (TTS)**.
-*   **STT**: Uses **Faster-Whisper** (via CTranslate2) and Hugging Face Transformers to deliver an OpenAI REST API-compatible endpoint for transcription.
-*   **TTS**: Uses the **Kokoro TTS** model to provide an efficient, OpenAI-compatible endpoint for speech synthesis.
 
 ## Features
 
@@ -17,12 +15,11 @@ This project provides a local, Dockerized API for both **Speech-to-Text (STT)** 
 ## Recommended Models
 
 ### Speech-to-Text (STT)
-This service is designed for `ctranslate2` compatible models.
-*   `Systran/faster-whisper-large-v3` (Default): Best quality, multilingual.
-*   `Systran/faster-whisper-medium.en`: Great quality, English-only, faster.
+*   `Systran/faster-whisper-large-v3`: Best quality, multilingual.
+*   `Systran/faster-distil-whisper-small.en`: Good quality, English-only, faster (default in docker-compose).
 
 ### Text-to-Speech (TTS)
-*   `Kokoro-82M-v1.0-ONNX` is used by default via the `kokoro` library. The language is configured via an environment variable.
+*   `Kokoro-82M` is used by default via the `kokoro` library. The language is configured via an environment variable.
 
 ## Prerequisites
 
@@ -49,32 +46,98 @@ Using `docker-compose` is the recommended way to run this service.
 
 ### 1. Configure the Service in `docker-compose.yml`
 
-Open `docker-compose.yml` and select the appropriate service configuration for your hardware.
+Create or edit your `docker-compose.yml` file and select the appropriate service configuration for your hardware.
 
-*   **Option 1: NVIDIA GPU (x86_64)**
-    *   Uncomment the "OPTION 1" section.
-    *   Ensure the image is set to `speech-service:gpu-latest`.
-    *   Ensure the `deploy` section with `nvidia` driver is active.
-    *   Recommended `STT_COMPUTE_TYPE`: `float16` or `int8_float16`.
+#### Option 1: NVIDIA GPU (x86_64)
 
-*   **Option 2: CPU (x86_64)**
-    *   Uncomment the "OPTION 2" section (Default).
-    *   Ensure the image is set to `speech-service:cpu-latest`.
-    *   Recommended `STT_COMPUTE_TYPE`: `int8`.
+```yaml
+services:
+  speech-service:
+    image: gitea.max.lan/dlaszlo/speech-service:gpu-latest
+    container_name: speech-service
+    ports:
+      - "8000:8000"
+    volumes:
+      - huggingface_cache:/data/huggingface
+    environment:
+      - STT_MODEL_NAME=Systran/faster-distil-whisper-small.en
+      # Compute type: float16 or int8_float16 for GPU recommended
+      - STT_COMPUTE_TYPE=int8_float16
+      - TTS_MODEL_NAME=hexgrad/Kokoro-82M
+      - TTS_LANG_CODE=a
+      - HF_HOME=/data/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
 
-*   **Option 3: ARM CPU (Raspberry Pi / Apple Silicon)**
-    *   Uncomment the "OPTION 3" section.
-    *   Ensure the image is set to `speech-service:arm-latest`.
-    *   Recommended `STT_COMPUTE_TYPE`: `int8`.
+volumes:
+  huggingface_cache:
+    driver: local
+```
+
+#### Option 2: CPU (x86_64)
+
+```yaml
+services:
+  speech-service:
+    image: gitea.max.lan/dlaszlo/speech-service:cpu-latest
+    container_name: speech-service
+    ports:
+      - "8000:8000"
+    volumes:
+      - huggingface_cache:/data/huggingface
+    environment:
+      - STT_MODEL_NAME=Systran/faster-distil-whisper-small.en
+      # Compute type: int8 is best for CPU
+      - STT_COMPUTE_TYPE=int8
+      - TTS_MODEL_NAME=hexgrad/Kokoro-82M
+      - TTS_LANG_CODE=a
+      - HF_HOME=/data/huggingface
+    restart: unless-stopped
+
+volumes:
+  huggingface_cache:
+    driver: local
+```
+
+#### Option 3: ARM CPU (Raspberry Pi / Apple Silicon)
+
+```yaml
+services:
+  speech-service:
+    image: gitea.max.lan/dlaszlo/speech-service:arm-latest
+    container_name: speech-service
+    ports:
+      - "8000:8000"
+    volumes:
+      - huggingface_cache:/data/huggingface
+    environment:
+      - STT_MODEL_NAME=Systran/faster-distil-whisper-small.en
+      # Compute type: int8 usually works well on ARM too
+      - STT_COMPUTE_TYPE=int8
+      - TTS_MODEL_NAME=hexgrad/Kokoro-82M
+      - TTS_LANG_CODE=a
+      - HF_HOME=/data/huggingface
+    restart: unless-stopped
+
+volumes:
+  huggingface_cache:
+    driver: local
+```
 
 ### 2. Start the Container
 
 Once you have configured `docker-compose.yml`, run:
 
 ```bash
-docker-compose up -d
-```
-The first time you run this, it will start the container. The model download will happen automatically when the container starts (or when you first use the API), caching files in the `./data` directory (mapped volume).
+ docker-compose up -d
+ ```
+ The first time you run this, it will start the container. The model download will happen automatically when the container starts (or when you first use the API), caching files in the `huggingface_cache` volume.
 
 ### 3. Stop the Service
 
@@ -101,10 +164,10 @@ curl http://localhost:8000/health
 This endpoint is compatible with the OpenAI STT API.
 
 ```bash
-curl -X POST "http://localhost:8000/v1/audio/transcriptions" \
-     -H "Content-Type: multipart/form-data" \
-     -F "file=@/path/to/your/audio.mp3" \
-     -F "model=whisper-1"
+ curl -X POST "http://localhost:8000/v1/audio/transcriptions" \
+      -H "Content-Type: multipart/form-data" \
+      -F "file=@/path/to/your/audio.mp3" \
+      -F "model=Systran/faster-distil-whisper-small.en"
 ```
 *   `file=@/path/to/your/audio.mp3`: **Important:** Replace with the actual path to your audio file.
 
@@ -128,15 +191,10 @@ curl -X POST "http://localhost:8000/v1/models/download" \
 This endpoint is compatible with the OpenAI TTS API. It generates a WAV audio file.
 
 ```bash
-curl -X POST "http://localhost:8000/v1/audio/speech" \
-     -H "Content-Type: application/json" \
-     -d 
-     {
-           "model": "kokoro-82M-v1.0-ONNX",
-           "input": "Hello, this is a test of the local text to speech service.",
-           "voice": "af_heart"
-         }
-     --output speech.wav
+ curl -X POST "http://localhost:8000/v1/audio/speech" \
+      -H "Content-Type: application/json" \
+      -d '{"model": "hexgrad/Kokoro-82M", "input": "Hello, this is a test of the local text to speech service.", "voice": "af_heart"}' \
+      --output speech.wav
 ```
 *   `input`: The text to be synthesized.
 *   `voice`: The voice to use (e.g., `af_heart`).
@@ -146,14 +204,10 @@ curl -X POST "http://localhost:8000/v1/audio/speech" \
 You can switch the TTS language or model version at runtime.
 
 ```bash
-curl -X POST "http://localhost:8000/v1/models/tts/download" \
-     -H "Content-Type: application/json" \
-     -d 
-     {
-           "lang_code": "b",
-           "model_id": "hexgrad/Kokoro-82M-v1.0-ONNX"
-         }
-```
+ curl -X POST "http://localhost:8000/v1/models/tts/download" \
+      -H "Content-Type: application/json" \
+      -d '{"lang_code": "b", "model_id": "hexgrad/Kokoro-82M"}'
+ ```
 *   `lang_code`: The language code (e.g., `b` for British English).
 *   `model_id`: (Optional) The Hugging Face model repository ID.
 

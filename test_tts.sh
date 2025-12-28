@@ -10,11 +10,7 @@ fi
 echo "Sending TTS Request..."
 curl -X POST http://localhost:8000/v1/audio/speech \
   -H "Content-Type: application/json" \
-  -d '{ 
-    "model": "hexgrad/Kokoro-82M", 
-    "input": "The quick brown fox jumps over the lazy dog. This is a test of the English text to speech generation.", 
-    "voice": "af_sarah" 
-  }' \
+  -d '{"model": "hexgrad/Kokoro-82M", "input": "The quick brown fox jumps over the lazy dog. This is a test of the English text to speech generation.", "voice": "af_sarah"}' \
   --output test_speech.wav
 
 if [ $? -eq 0 ]; then
