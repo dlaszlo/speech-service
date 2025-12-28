@@ -5,7 +5,7 @@ from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 
 from ..core.config import MAX_FILE_SIZE_MB, MAX_FILE_SIZE_BYTES
 from ..core.stt_dependencies import get_model_state
-from ..services.stt_service import transcribe_audio
+from ..services.stt_service import transcribe
 from ..core.exceptions import ModelNotLoadedError, TranscriptionError, TimeoutError
 
 from ..schemas.stt import TranscriptionResponse, STTModelLoadRequest
@@ -26,10 +26,10 @@ async def transcribe_audio_endpoint(
         logger.debug(f"Received transcription request with content-type: {file.content_type}")
     
     # Validate that the requested model matches the loaded model
-    if model and model_state.model_name and model != model_state.model_name:
+    if model and model_state.model_id and model != model_state.model_id:
         raise HTTPException(
             status_code=400,
-            detail=f"Model '{model}' is not loaded. Currently loaded: '{model_state.model_name}'. Dynamic model switching is not supported via this endpoint."
+            detail=f"Model '{model}' is not loaded. Currently loaded: '{model_state.model_id}'. Dynamic model switching is not supported via this endpoint."
         )
 
     file_content = await file.read()
@@ -39,9 +39,9 @@ async def transcribe_audio_endpoint(
             detail=f"File size exceeds the maximum limit of {MAX_FILE_SIZE_MB}MB."
         )
 
-    async with model_state.transcription_lock:
+    async with model_state.process_lock:
         try:
-            transcribed_text = await transcribe_audio(
+            transcribed_text = await transcribe(
                 file_content=file_content,
                 language=language,
                 prompt=prompt,
@@ -61,13 +61,13 @@ async def transcribe_audio_endpoint(
             logger.error(f"Unexpected error: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Unexpected server error.")
 
-@router.post("/v1/models/download")
+@router.post("/v1/models/stt/download")
 async def download_model_endpoint(request: STTModelLoadRequest):
-    logger.info(f"Received request to download/load model: {request.model_name} with compute_type: {request.compute_type}")
-    async with model_state.transcription_lock:
+    logger.info(f"Received request to download/load model: {request.model_id} with compute_type: {request.compute_type}")
+    async with model_state.process_lock:
         try:
-            await model_state.load_model(model_id=request.model_name, compute_type=request.compute_type)
-            return {"message": f"Model '{request.model_name}' (compute_type={request.compute_type}) loaded successfully."}
+            await model_state.load_model(model_id=request.model_id, compute_type=request.compute_type)
+            return {"message": f"Model '{request.model_id}' (compute_type={request.compute_type}) loaded successfully."}
         except Exception as e:
-            logger.error(f"Failed to process model download request for '{request.model_name}': {e}", exc_info=True)
+            logger.error(f"Failed to process model download request for '{request.model_id}': {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Failed to load/download model: {str(e)}")

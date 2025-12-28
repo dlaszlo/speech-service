@@ -10,7 +10,7 @@ from ..core.config import TRANSCRIPTION_TIMEOUT_SECONDS, TRANSCRIPTION_PROCESSIN
 logger = logging.getLogger(__name__)
 model_state = get_model_state()
 
-async def transcribe_audio(
+async def transcribe(
     file_content: bytes,
     language: Optional[str],
     prompt: Optional[str],

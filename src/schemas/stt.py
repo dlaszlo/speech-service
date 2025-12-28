@@ -6,5 +6,5 @@ class TranscriptionResponse(BaseModel):
 
 class STTModelLoadRequest(BaseModel):
     """Request model for loading a specific STT model."""
-    model_name: str
+    model_id: str
     compute_type: str = "auto"

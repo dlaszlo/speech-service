@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
         if stt_model_state.model is not None:
             logger.info("Clearing STT model")
             stt_model_state.model = None
-            stt_model_state.model_name = None
+            stt_model_state.model_id = None
         
         if tts_model_state.pipeline is not None:
             logger.info("Clearing TTS model")
