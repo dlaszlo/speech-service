@@ -127,9 +127,9 @@ This endpoint is compatible with the OpenAI STT API.
 You can switch the STT model at runtime without restarting the container.
 
 ```bash
-curl -X POST "http://localhost:8000/v1/models/download" \
+curl -X POST "http://localhost:8000/v1/models/stt/download" \
      -H "Content-Type: application/json" \
-     -d '{"model_name": "ctranslate2-expert/faster-whisper-medium.en"}'
+     -d '{"model_id": "ctranslate2-expert/faster-whisper-medium.en"}'
 ```
 
 ### Text-to-Speech (TTS)
@@ -157,4 +157,22 @@ You can switch the TTS language or model version at runtime.
  ```
 *   `lang_code`: The language code (e.g., `b` for British English).
 *   `model_id`: (Optional) The Hugging Face model repository ID.
+
+## Testing
+
+You can use the provided bash scripts to quickly test the service:
+
+1.  **TTS Test**: Generates a sample audio file.
+    ```bash
+    ./test_tts.sh
+    ```
+2.  **STT Test**: Transcribes the previously generated audio file (requires `test_speech.wav`).
+    ```bash
+    ./test_stt.sh
+    ```
+
+## Links
+
+*   **Docker Hub**: [dlaszlo/speech-service](https://hub.docker.com/r/dlaszlo/speech-service)
+*   **GitHub Repository**: [dlaszlo/speech-service](https://github.com/dlaszlo/speech-service)
 
