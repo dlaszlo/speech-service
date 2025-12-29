@@ -196,19 +196,37 @@ You can switch the TTS language or model version at runtime.
 
 ## Testing
 
-You can use the provided Python scripts to quickly test the service:
+## Testing
 
-1.  **TTS Test**: Generates a sample audio file.
+The project uses `pytest` for testing. The tests cover:
+*   **STT**: Transcription validation and edge cases.
+*   **TTS**: Audio generation for all supported formats and streaming (Chunked & SSE).
+*   **Edge Cases**: Error handling, invalid inputs, and boundary conditions.
+
+### 1. Install Test Dependencies
+```bash
+pip install -r requirements/tests.txt
+```
+
+### 2. Run All Tests
+```bash
+pytest tests/
+```
+
+### 3. Run Specific Tests
+*   **STT Tests**:
     ```bash
-    python tests/test_tts_service.py
+    pytest tests/test_stt.py
+    pytest tests/test_stt_edge_cases.py
     ```
-2.  **STT Test**: Transcribes the previously generated audio file (requires running the TTS test first).
+*   **TTS Basic Tests**:
     ```bash
-    python tests/test_stt_service.py
+    pytest tests/test_tts_basic.py
     ```
-3.  **TTS Streaming Test**: Tests streaming TTS with SSE events.
+*   **TTS Streaming Tests**:
     ```bash
-    python tests/test_tts_service_streaming.py
+    pytest tests/test_tts_audio_streaming.py
+    pytest tests/test_tts_sse_streaming.py
     ```
 
 ## Links
