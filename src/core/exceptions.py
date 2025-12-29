@@ -17,3 +17,7 @@ class SynthesisError(ServiceError):
 class TimeoutError(ServiceError):
     """Raised when an operation times out."""
     pass
+
+class InvalidVoiceError(ServiceError):
+    """Raised when an invalid voice is provided."""
+    pass

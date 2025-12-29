@@ -101,6 +101,68 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+from fastapi.responses import JSONResponse
+from fastapi import Request
+from .core.exceptions import (
+    ServiceError,
+    ModelNotLoadedError,
+    TranscriptionError,
+    SynthesisError,
+    TimeoutError,
+    TimeoutError,
+    InvalidVoiceError as ServiceInvalidVoiceError
+)
+from .core.error_handler import TTSAPIError
+
+@app.exception_handler(ServiceError)
+async def service_error_handler(request: Request, exc: ServiceError):
+    return JSONResponse(
+        status_code=500,
+        content={"error": {"message": str(exc), "type": "service_error", "code": "internal_error"}}
+    )
+
+@app.exception_handler(ModelNotLoadedError)
+async def model_not_loaded_handler(request: Request, exc: ModelNotLoadedError):
+    return JSONResponse(
+        status_code=503,
+        content={"error": {"message": str(exc), "type": "invalid_request_error", "code": "model_not_loaded"}}
+    )
+
+@app.exception_handler(TranscriptionError)
+async def transcription_error_handler(request: Request, exc: TranscriptionError):
+    return JSONResponse(
+        status_code=500,
+        content={"error": {"message": str(exc), "type": "api_error", "code": "transcription_failed"}}
+    )
+
+@app.exception_handler(SynthesisError)
+async def synthesis_error_handler(request: Request, exc: SynthesisError):
+    return JSONResponse(
+        status_code=500,
+        content={"error": {"message": str(exc), "type": "api_error", "code": "synthesis_failed"}}
+    )
+
+@app.exception_handler(TimeoutError)
+async def timeout_error_handler(request: Request, exc: TimeoutError):
+    return JSONResponse(
+        status_code=408,
+        content={"error": {"message": str(exc), "type": "api_error", "code": "timeout"}}
+    )
+
+@app.exception_handler(ServiceInvalidVoiceError)
+async def invalid_voice_error_handler(request: Request, exc: ServiceInvalidVoiceError):
+    return JSONResponse(
+        status_code=400,
+        content={"error": {"message": str(exc), "type": "invalid_request_error", "code": "invalid_voice"}}
+    )
+
+@app.exception_handler(TTSAPIError)
+async def tts_api_error_handler(request: Request, exc: TTSAPIError):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=exc.detail
+    )
+
 app.include_router(transcription_router, tags=["Speech to Text"])
 app.include_router(tts_router, tags=["Text to Speech"])
 app.include_router(system_router, tags=["System"])

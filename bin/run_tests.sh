@@ -1,64 +1,56 @@
 #!/bin/bash
 
-# run_tests.sh
-# Runs all TTS and STT tests in sequence.
-# Usage: ./run_tests.sh
+set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR/.."
+VENV_DIR="$PROJECT_ROOT/venv"
+
+echo "========================================================"
+echo "SPEECH SERVICE TEST SUITE SETUP"
+echo "========================================================"
+
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv "$VENV_DIR"
+fi
+
+echo "Activating virtual environment..."
+source "$VENV_DIR/bin/activate"
+
+echo "Installing dependencies..."
+pip install -q -r "$PROJECT_ROOT/requirements/tests.txt"
+echo "Done!"
+
+echo ""
 echo "========================================================"
 echo "STARTING SPEECH SERVICE TEST SUITE"
 echo "========================================================"
 
-# Function to run a test and check its exit code
-run_test() {
-    echo "--------------------------------------------------------"
-    echo "Running: $1"
-    python3 "$1"
-    if [ $? -eq 0 ]; then
-        echo "✅ PASS: $1"
-    else
-        echo "❌ FAIL: $1"
-        exit 1
-    fi
-}
+# Check if server is running and healthy
+HEALTH_URL="http://localhost:8000/health"
+if ! curl -s "$HEALTH_URL" | jq -e '.status == "healthy"' > /dev/null 2>&1; then
+    echo "Error: Server is not running or unhealthy at $HEALTH_URL"
+    echo "Please start the server with: ./bin/start.sh"
+    exit 1
+fi
 
-# 1. Basic TTS Tests (Non-streaming)
+echo "Server is running and healthy"
 echo ""
-echo ">>> CATEGORY 1: Basic TTS (Non-streaming)"
-run_test "tests/test_tts_wav.py"
-run_test "tests/test_tts_pcm.py"
-run_test "tests/test_tts_mp3.py"
-run_test "tests/test_tts_aac.py"
-run_test "tests/test_tts_opus.py"
-run_test "tests/test_tts_flac.py"
 
-# 2. Audio Streaming Tests (OpenAI Async Client)
+# Clean output directory
+OUTPUT_DIR="$PROJECT_ROOT/tests/output"
+echo "Cleaning output directory..."
+rm -rf "$OUTPUT_DIR"/*
+echo "Output directory cleaned."
 echo ""
-echo ">>> CATEGORY 2: Audio Streaming (Real-time)"
-run_test "tests/test_tts_audio_wav.py"
-run_test "tests/test_tts_audio_pcm.py"
-run_test "tests/test_tts_audio_mp3.py"
-run_test "tests/test_tts_audio_aac.py"
-run_test "tests/test_tts_audio_opus.py"
-run_test "tests/test_tts_audio_flac.py"
 
-# 3. SSE Streaming Tests
-echo ""
-echo ">>> CATEGORY 3: SSE Streaming"
-run_test "tests/test_tts_sse_wav.py"
-run_test "tests/test_tts_sse_pcm.py"
-run_test "tests/test_tts_sse_mp3.py"
-run_test "tests/test_tts_sse_aac.py"
-run_test "tests/test_tts_sse_opus.py"
-run_test "tests/test_tts_sse_flac.py"
-
-# 4. STT Tests
-echo ""
-echo ">>> CATEGORY 4: STT Transcription Support"
-run_test "tests/test_stt_wav.py"
-run_test "tests/test_stt_mp3.py"
+# Run pytest
+echo "Running pytest..."
+pytest tests/ -v --tb=short
 
 echo ""
 echo "========================================================"
-echo "🎉 ALL TESTS PASSED SUCCESSFULLY!"
+echo "ALL TESTS PASSED SUCCESSFULLY!"
 echo "========================================================"
 exit 0

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from typing import Literal, Union, Optional
 
 class TTSGenerationRequest(BaseModel):
@@ -12,8 +12,9 @@ class TTSGenerationRequest(BaseModel):
     stream_format: Optional[Literal["audio", "sse"]] = None
     instructions: Optional[str] = None
 
-    @validator('input')
-    def validate_input_length(cls, v):
+    @field_validator('input')
+    @classmethod
+    def validate_input_length(cls, v: str) -> str:
         if len(v) > 4096:
             raise ValueError('Input text exceeds maximum length of 4096 characters.')
         if len(v.strip()) == 0:

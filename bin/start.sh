@@ -19,7 +19,7 @@ echo "Activating virtual environment..."
 source "$VENV_DIR/bin/activate"
 
 echo "Installing dependencies..."
-pip install -q -r "$PROJECT_ROOT/requirements/tests.txt"
+pip install -q -r "$PROJECT_ROOT/requirements/cpu.txt"
 echo "Done!"
 
 echo ""

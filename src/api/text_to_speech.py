@@ -5,12 +5,15 @@ from fastapi.responses import StreamingResponse
 
 from ..services.tts_service import synthesize, synthesize_streaming
 from ..core.tts_dependencies import get_tts_model_state
-from ..core.exceptions import ModelNotLoadedError, SynthesisError, TimeoutError
+from ..core.exceptions import ModelNotLoadedError, SynthesisError, TimeoutError, InvalidVoiceError as ServiceInvalidVoiceError
 from ..schemas.tts import TTSGenerationRequest, TTSModelLoadRequest
+from ..core.error_handler import InvalidVoiceError, InvalidFormatError, EmptyInputError, MaxLengthExceededError, InvalidModelError
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 tts_model_state = get_tts_model_state()
+
+SUPPORTED_FORMATS = ["wav", "pcm", "mp3", "aac", "opus", "flac"]
 
 def _normalize_voice(voice) -> str:
     """
@@ -30,25 +33,17 @@ async def create_speech(request: TTSGenerationRequest, http_request: Request):
 
     if len(request.input.strip()) == 0:
         logger.warning("[TTS] Rejected request: empty input text")
-        raise HTTPException(status_code=400, detail="Input text cannot be empty.")
+        raise EmptyInputError()
 
     if len(request.input) > 4096:
         logger.warning(f"[TTS] Rejected request: input too long ({len(request.input)} > 4096)")
-        raise HTTPException(
-            status_code=413,
-            detail="Input text exceeds maximum length of 4096 characters."
-        )
+        raise MaxLengthExceededError()
 
     voice = _normalize_voice(request.voice)
 
-    supported_formats = ["wav", "pcm", "mp3", "aac", "opus", "flac"]
-
-    if request.response_format not in supported_formats:
-        logger.warning(f"[TTS] Rejected request: unsupported format '{request.response_format}'")
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported format '{request.response_format}'. Supported formats: {', '.join(supported_formats)}"
-        )
+    if tts_model_state.model_id and tts_model_state.model_id != request.model:
+        logger.warning(f"[TTS] Rejected request: invalid model '{request.model}', loaded model is '{tts_model_state.model_id}'")
+        raise InvalidModelError(request.model)
 
     try:
         media_type = {
@@ -101,6 +96,10 @@ async def create_speech(request: TTSGenerationRequest, http_request: Request):
                 media_type=media_type,
                 headers={"Transfer-Encoding": "chunked"}
             )
+
+    except ServiceInvalidVoiceError as e:
+        logger.error(f"TTS Synthesis failed: {e}")
+        raise InvalidVoiceError(str(e))
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

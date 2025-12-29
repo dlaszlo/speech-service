@@ -32,3 +32,6 @@ cache/
 
 # Ignore logs
 *.log
+
+# Ignore test outputs
+tests/output/

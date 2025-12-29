@@ -7,6 +7,7 @@ from ..core.config import MAX_FILE_SIZE_MB, MAX_FILE_SIZE_BYTES
 from ..core.stt_dependencies import get_model_state
 from ..services.stt_service import transcribe
 from ..core.exceptions import ModelNotLoadedError, TranscriptionError, TimeoutError
+from ..core.error_handler import InvalidModelError
 
 from ..schemas.stt import TranscriptionResponse, STTModelLoadRequest
 
@@ -28,12 +29,10 @@ async def transcribe_audio_endpoint(
         logger.debug(f"Received transcription request with content-type: {file.content_type}")
 
     # Validate that the requested model matches the loaded model
+    # Validate that the requested model matches the loaded model
     if model and model_state.model_id and model != model_state.model_id:
         logger.warning(f"[STT] Rejected request: model mismatch (requested='{model}', loaded='{model_state.model_id}')")
-        raise HTTPException(
-            status_code=400,
-            detail=f"Model '{model}' is not loaded. Currently loaded: '{model_state.model_id}'. Dynamic model switching is not supported via this endpoint."
-        )
+        raise InvalidModelError(model)
 
     file_content = await file.read()
     logger.info(f"[STT] Read file content, size={len(file_content)} bytes")

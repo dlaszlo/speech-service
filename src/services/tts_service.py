@@ -6,7 +6,7 @@ import json
 import numpy as np
 
 from ..core.tts_dependencies import get_tts_model_state
-from ..core.exceptions import ModelNotLoadedError, SynthesisError, TimeoutError as ServiceTimeoutError
+from ..core.exceptions import ModelNotLoadedError, SynthesisError, TimeoutError as ServiceTimeoutError, InvalidVoiceError
 from ..core.config import TTS_SYNTHESIS_TIMEOUT_SECONDS, TTS_SAMPLE_RATE
 from ..core.audio_encoder import get_encoder
 
@@ -59,6 +59,10 @@ def _synthesize_sync(text: str, voice: str, response_format: str) -> bytes:
                     all_audio_arrays.append(audio_array)
                     
         except Exception as e:
+            error_msg = str(e)
+            if "404" in error_msg or "Not Found" in error_msg:
+                logger.error(f"Invalid voice '{voice}': {e}")
+                raise InvalidVoiceError(f"Voice '{voice}' not found")
             logger.error(f"Error during audio generation: {e}")
             raise
         finally:
@@ -124,13 +128,30 @@ async def synthesize_streaming(
     log_prefix = "[SSE]" if is_sse else "[AUDIO]"
     
     try:
-        generator = pipeline(text, voice=voice)  # type: ignore
+        try:
+            from requests.exceptions import HTTPError as RequestsHTTPError
+        except ImportError:
+            RequestsHTTPError = None
+
+        try:
+            generator = pipeline(text, voice=voice)  # type: ignore
+        except Exception as e:
+            error_msg = str(e)
+            if RequestsHTTPError and isinstance(e, RequestsHTTPError) and e.response and e.response.status_code == 404:
+                logger.error(f"Invalid voice '{voice}': {e}")
+                raise InvalidVoiceError(f"Voice '{voice}' not found")
+            raise
 
         async def streaming_generator():
             chunk_count = 0
             encoder = get_encoder(response_format, TTS_SAMPLE_RATE)
             
             try:
+                try:
+                    from requests.exceptions import HTTPError as RequestsHTTPError
+                except ImportError:
+                    RequestsHTTPError = None
+
                 # Handle header
                 header = encoder.create_header()
                 if header:
@@ -146,7 +167,14 @@ async def synthesize_streaming(
                 
                 # Process audio chunks
                 while True:
-                    result, status = await asyncio.to_thread(_next_wrapper, generator)
+                    try:
+                        result, status = await asyncio.to_thread(_next_wrapper, generator)
+                    except Exception as e:
+                        error_msg = str(e)
+                        if RequestsHTTPError and isinstance(e, RequestsHTTPError) and e.response and e.response.status_code == 404:
+                            logger.error(f"Invalid voice '{voice}': {e}")
+                            raise InvalidVoiceError(f"Voice '{voice}' not found")
+                        raise
                     if status == "STOP":
                         break
                     

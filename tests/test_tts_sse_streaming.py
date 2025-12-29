@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-"""Test FLAC TTS streaming with SSE events."""
-
+import pytest
 import requests
 import json
 import time
@@ -8,58 +6,29 @@ import base64
 import os
 import logging
 from typing import List
+from tests import validate_audio_file, validate_sse_delta_events, validate_sse_done_event, calculate_audio_duration
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(threadName)s] %(name)30.30s %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def test_tts_streaming():
-    """Test FLAC TTS streaming with SSE format and verify continuous streaming."""
+@pytest.mark.parametrize("format", ["wav", "mp3", "flac", "opus", "aac", "pcm"])
+def test_tts_sse_streaming(format, output_dir, test_text, common_constants):
+    """Test SSE streaming for all supported formats."""
     
-    base_url = "http://localhost:8000"
-    
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(script_dir, "output")
-    output_file = os.path.join(output_dir, "test_tts_streaming_flac.flac")
+    output_file = output_dir / f"test_tts_sse.{format}"
+    base_url = common_constants["BASE_URL"]
     
     logger.info(f"Generating audio file: {output_file}")
-    
-    # Check if server is running
-    try:
-        response = requests.get(f"{base_url}/docs", timeout=5)
-        if response.status_code != 200:
-            logger.error("Server is running but not responding correctly")
-            return False
-    except requests.exceptions.RequestException:
-        logger.error("Server is not running at http://localhost:8000")
-        logger.error("Start it with: ./start.sh")
-        return False
-    
-    # Read text from file and truncate to desired length
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    text_file_path = os.path.join(script_dir, "test_text.txt")
-    
-    try:
-        with open(text_file_path, "r", encoding="utf-8") as f:
-            full_text = f.read()
-        
-        # Use first 4000 characters to stay within 4096 limit
-        text_length = 4000
-        long_text = full_text[:text_length]
-        
-    except FileNotFoundError:
-        logger.error("test_text.txt not found")
-        return False
+    logger.info(f"Text length: {len(test_text)} characters")
     
     request_data = {
-        "model": "hexgrad/Kokoro-82M",
-        "input": long_text,
-        "voice": "af_sarah",
-        "response_format": "flac",
+        "model": common_constants["TTS_MODEL"],
+        "input": test_text,
+        "voice": common_constants["VOICE"],
+        "response_format": format,
         "stream_format": "sse"
     }
     
     logger.info("Sending streaming TTS request...")
-    logger.info(f"Text length: {len(request_data['input'])} characters")
     
     try:
         response = requests.post(
@@ -69,10 +38,7 @@ def test_tts_streaming():
             timeout=60
         )
         
-        if response.status_code != 200:
-            logger.error(f"Server returned status {response.status_code}")
-            logger.error(f"Response: {response.text}")
-            return False
+        assert response.status_code == 200, f"Server returned status {response.status_code}: {response.text}"
         
         logger.info("Receiving SSE events...")
 
@@ -101,7 +67,6 @@ def test_tts_streaming():
                                 audio_bytes = base64.b64decode(audio_data)
                                 audio_chunks.append(audio_bytes)
                                 
-                                # Write immediately to file
                                 f.write(audio_bytes)
 
                             elif event_type == 'speech.audio.done':
@@ -116,52 +81,30 @@ def test_tts_streaming():
                             logger.error(f"Failed to parse JSON: {e}")
                             continue
 
-        logger.info(f"Audio saved to: {output_file} (FLAC format from server chunks)")
         combined_audio = b''.join(audio_chunks)
-        logger.info(f"File size: {len(combined_audio)} bytes")
+        logger.info(f"Audio saved to: {output_file} ({len(combined_audio)} bytes")
+        
+        duration = calculate_audio_duration(len(combined_audio), format)
+        logger.info(f"Duration: {duration:.2f} seconds")
 
         logger.info("=" * 60)
         logger.info("Test Results:")
         logger.info(f"- Delta events received: {len(delta_events)}")
         logger.info(f"- Done event received: {done_event is not None}")
 
-        # Validate results
-        if len(delta_events) == 0:
-            logger.error("No delta events received")
-            return False
+        assert validate_sse_delta_events(len(delta_events)), "SSE delta events validation failed"
+        assert validate_sse_done_event(done_event), "SSE done event validation failed"
+        assert validate_audio_file(str(output_file), format), f"Audio validation failed for {format}"
         
-        if len(delta_events) == 1:
-            logger.warning("Only one delta event - streaming may not be continuous")
-        else:
-            logger.info(f"PASS: Received {len(delta_events)} delta events - streaming is continuous")
-        
-        if not done_event:
-            logger.error("No done event received")
-            return False
-        else:
-            logger.info("PASS: Done event received")
-        
-        # Check timing between chunks
         if len(delta_events) > 1:
             logger.info("Timing analysis:")
             for i in range(1, len(delta_events)):
                 time_diff = delta_events[i]['timestamp'] - delta_events[i-1]['timestamp']
                 logger.info(f"  Chunk {i-1} -> {i}: {time_diff:.3f}s")
-        return True
         
     except requests.exceptions.Timeout:
         logger.error("Request timed out after 60 seconds")
-        return False
+        raise
     except Exception as e:
-        logger.error(f"{e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-if __name__ == "__main__":
-    success = test_tts_streaming()
-    if success:
-        logger.info("PASS: Test passed!")
-    else:
-        logger.error("FAIL: Test failed!")
-        exit(1)
+        logger.error(f"Error occurred: {e}")
+        raise
