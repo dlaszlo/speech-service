@@ -21,8 +21,8 @@ async def transcribe(
         raise ModelNotLoadedError("STT model is not loaded.")
 
     try:
-        logger.info("Starting audio transcription process.")
-        
+        logger.info(f"[STT] Starting audio transcription process: file_size={len(file_content)}, language={language}, temperature={temperature}")
+
         transcribe_kwargs = {
             "language": language,
             "initial_prompt": prompt,
@@ -31,11 +31,12 @@ async def transcribe(
             "vad_filter": True,
             "vad_parameters": dict(min_silence_duration_ms=500)
         }
-        
+
         audio_file = None
         try:
             audio_file = io.BytesIO(file_content)
 
+            logger.info("[STT] Calling transcribe() on model")
             # faster_whisper's transcribe returns a generator (segments, info)
             segments, info = await asyncio.wait_for(
                 asyncio.to_thread(
@@ -48,9 +49,10 @@ async def transcribe(
         finally:
             if audio_file is not None:
                 audio_file.close()
-        
-        logger.info(f"Detected language '{info.language}' with probability {info.language_probability:.2f}")
 
+        logger.info(f"[STT] Detected language '{info.language}' with probability {info.language_probability:.2f}")
+
+        logger.info("[STT] Processing transcription segments")
         def process_segments(segs):
             text_list = []
             for segment in segs:
@@ -61,8 +63,8 @@ async def transcribe(
             asyncio.to_thread(process_segments, segments),
             timeout=TRANSCRIPTION_PROCESSING_TIMEOUT_SECONDS
         )
-        
-        logger.info("Transcription complete.")
+
+        logger.info(f"[STT] Transcription complete: result_length={len(full_text)}")
         return full_text
 
     except ModelNotLoadedError:

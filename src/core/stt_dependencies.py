@@ -13,7 +13,6 @@ class STTModelState:
         self.model_id = None
         self.compute_type = "float16"
         self.device = "cpu"
-        self.process_lock = asyncio.Lock()
         self.model_load_lock = asyncio.Lock()
 
     async def load_model(self, model_id: str, compute_type: str = "auto"):

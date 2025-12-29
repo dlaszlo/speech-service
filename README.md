@@ -10,13 +10,12 @@ This project provides a local, Dockerized REST API with OpenAI compatible endpoi
 *   **OpenAI API Compatibility**: Provides `/v1/audio/transcriptions` (STT) and `/v1/audio/speech` (TTS) endpoints.
 *   **Easy Deployment**: Simplified setup using `docker-compose`.
 *   **Dynamic Model Management**: Load models on-the-fly via REST endpoints.
-*   **Persistent Model Cache**: Models are cached in a volume to prevent re-downloading.
 
 ## Recommended Models
 
 ### Speech-to-Text (STT)
 *   `Systran/faster-whisper-large-v3`: Best quality, multilingual.
-*   `Systran/faster-distil-whisper-small.en`: Good quality, English-only, faster (default in docker-compose).
+*   `Systran/faster-distil-whisper-small.en`: Good quality, English-only, faster.
 
 ### Text-to-Speech (TTS)
 *   `Kokoro-82M` is used by default via the `kokoro` library. The language is configured via an environment variable.
@@ -30,6 +29,43 @@ This project provides a local, Dockerized REST API with OpenAI compatible endpoi
 ## How to Run
 
 Using `docker-compose` is the recommended way to run this service.
+
+### Running Locally (Without Docker)
+
+If you prefer to run the service directly on your host system:
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/dlaszlo/speech-service.git
+    cd speech-service
+    ```
+
+2.  **Create and activate a virtual environment:**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate  # On Windows use: venv\Scripts\activate
+    ```
+
+3.  **Install dependencies:**
+    ```bash
+    pip install -r requirements/cpu.txt
+    ```
+
+4.  **Set environment variables and start the server:**
+    ```bash
+    export STT_MODEL_NAME=Systran/faster-distil-whisper-small.en
+    export STT_COMPUTE_TYPE=int8
+    export TTS_MODEL_NAME=hexgrad/Kokoro-82M
+    export TTS_LANG_CODE=a
+    python -m uvicorn src.main:app --host 0.0.0.0 --port 8000
+    ```
+
+Or use the provided helper script:
+```bash
+./bin/start.sh
+```
+
+### Running with Docker Compose
 
 ### 1. Configure the Service in `docker-compose.yml`
 
@@ -160,15 +196,19 @@ You can switch the TTS language or model version at runtime.
 
 ## Testing
 
-You can use the provided bash scripts to quickly test the service:
+You can use the provided Python scripts to quickly test the service:
 
 1.  **TTS Test**: Generates a sample audio file.
     ```bash
-    ./test_tts.sh
+    python tests/test_tts_service.py
     ```
-2.  **STT Test**: Transcribes the previously generated audio file (requires `test_speech.wav`).
+2.  **STT Test**: Transcribes the previously generated audio file (requires running the TTS test first).
     ```bash
-    ./test_stt.sh
+    python tests/test_stt_service.py
+    ```
+3.  **TTS Streaming Test**: Tests streaming TTS with SSE events.
+    ```bash
+    python tests/test_tts_service_streaming.py
     ```
 
 ## Links

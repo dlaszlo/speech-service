@@ -11,18 +11,21 @@ model_state = get_model_state()
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check_endpoint():
+    logger.info("[SYSTEM] Health check requested")
     tts_model_state = get_tts_model_state()
-    
+
     stt_status = "ok" if model_state.model else "not_loaded"
     tts_status = "ok" if tts_model_state.pipeline else "not_loaded"
-    
+
     if stt_status == "ok" and tts_status == "ok":
         overall_status = "healthy"
     elif stt_status == "ok" or tts_status == "ok":
         overall_status = "degraded"
     else:
         overall_status = "unhealthy"
-        
+
+    logger.info(f"[SYSTEM] Health check: status={overall_status}, stt={stt_status}, tts={tts_status}")
+
     return HealthResponse(
         status=overall_status,
         stt_model=stt_status,

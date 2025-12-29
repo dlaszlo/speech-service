@@ -16,7 +16,6 @@ class TTSModelState:
         self.pipeline = None
         self.lang_code = None
         self.model_id = None
-        self.process_lock = asyncio.Lock()
         self.model_load_lock = asyncio.Lock()
 
         if KPipeline is None:

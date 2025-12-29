@@ -1,10 +1,25 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
+from typing import Literal, Union, Optional
 
 class TTSGenerationRequest(BaseModel):
     """Request model for generating speech from text."""
-    model: str # For OpenAI compatibility (e.g., 'kokoro')
+    model: str
     input: str
-    voice: str # e.g., "af_heart"
+    voice: Union[str, dict]
+
+    response_format: Literal["wav", "pcm"] = "wav"
+    stream: bool = False
+    speed: float = 1.0
+    stream_format: Literal["audio", "sse"] = "audio"
+    instructions: Optional[str] = None
+
+    @validator('input')
+    def validate_input_length(cls, v):
+        if len(v) > 4096:
+            raise ValueError('Input text exceeds maximum length of 4096 characters.')
+        if len(v.strip()) == 0:
+            raise ValueError('Input text cannot be empty.')
+        return v
 
 class TTSModelLoadRequest(BaseModel):
     """Request model for loading a specific TTS model/language."""
