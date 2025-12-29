@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test TTS with OpenAI client."""
+"""Test Opus TTS with OpenAI client."""
 
 from openai import OpenAI
 import os
@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 def test_tts():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(script_dir, "output")
-    output_file = os.path.join(output_dir, "test_tts_service.wav")
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, "test_tts_opus.opus")
     
     logger.info(f"Generating audio file: {output_file}")
     
@@ -27,7 +28,7 @@ def test_tts():
             model="hexgrad/Kokoro-82M",
             input="The quick brown fox jumps over the lazy dog. This is a test of the English text to speech generation.",
             voice="af_sarah",
-            response_format="wav"
+            response_format="opus"
         ) as response:
             response.stream_to_file(output_file)
         

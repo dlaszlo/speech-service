@@ -3,16 +3,23 @@ import logging
 import asyncio
 import base64
 import json
-import soundfile as sf
 import numpy as np
-import struct
 
 from ..core.tts_dependencies import get_tts_model_state
 from ..core.exceptions import ModelNotLoadedError, SynthesisError, TimeoutError as ServiceTimeoutError
 from ..core.config import TTS_SYNTHESIS_TIMEOUT_SECONDS, TTS_SAMPLE_RATE
+from ..core.audio_encoder import get_encoder
 
 logger = logging.getLogger(__name__)
 tts_model_state = get_tts_model_state()
+
+
+def _next_wrapper(gen):
+    """Helper to wrap generator next() call for use with asyncio.to_thread."""
+    try:
+        return next(gen), None
+    except StopIteration:
+        return None, "STOP"
 
 async def synthesize(text: str, voice: str, response_format: str = "wav") -> bytes:
     if not tts_model_state.pipeline:
@@ -68,14 +75,26 @@ def _synthesize_sync(text: str, voice: str, response_format: str) -> bytes:
         full_audio = np.concatenate(all_audio_arrays)
         logger.info(f"[TTS] Speech synthesized successfully: total_samples={len(full_audio)}. Encoding to {response_format}.")
 
-        if response_format == "pcm":
-            return _encode_audio(full_audio)
-        else:
-            # For non-streaming WAV, use soundfile to write a proper WAV file with correct length
-            wav_io = io.BytesIO()
-            sf.write(wav_io, full_audio, TTS_SAMPLE_RATE, format='WAV')
-            wav_io.seek(0)
-            return wav_io.read()
+        encoder = get_encoder(response_format, TTS_SAMPLE_RATE)
+        
+        output_io = io.BytesIO()
+        
+        # Add header if any
+        header = encoder.create_header()
+        if header:
+            output_io.write(header)
+            
+        # Add encoded audio
+        chunk_bytes = encoder.encode_chunk(full_audio)
+        if chunk_bytes:
+            output_io.write(chunk_bytes)
+            
+        # Finalize
+        final_bytes = encoder.finalize()
+        if final_bytes:
+            output_io.write(final_bytes)
+            
+        return output_io.getvalue()
 
     except Exception as e:
         if isinstance(e, SynthesisError):
@@ -92,6 +111,7 @@ async def synthesize_streaming(
 ):
     """
     OpenAI compatible streaming TTS synthesis.
+    Supports both SSE (Server-Sent Events) and raw audio streaming.
     """
     if not tts_model_state.pipeline:
         logger.error("TTS requested but no model is loaded.")
@@ -100,60 +120,79 @@ async def synthesize_streaming(
     logger.info(f"Starting streaming TTS synthesis: text_length={len(text)}, voice='{voice}', response_format='{response_format}', stream_format='{stream_format}'")
 
     pipeline = tts_model_state.pipeline
+    is_sse = stream_format == "sse"
+    log_prefix = "[SSE]" if is_sse else "[AUDIO]"
+    
     try:
         generator = pipeline(text, voice=voice)  # type: ignore
 
-        if stream_format == "sse":
-            async def sse_generator():
-                chunk_count = 0
-                header_sent = False
+        async def streaming_generator():
+            chunk_count = 0
+            encoder = get_encoder(response_format, TTS_SAMPLE_RATE)
+            
+            try:
+                # Handle header
+                header = encoder.create_header()
+                if header:
+                    if is_sse:
+                        # For SSE, we'll prepend header to first audio chunk
+                        pending_header = header
+                    else:
+                        logger.info(f"{log_prefix} Sending {response_format} header ({len(header)} bytes)")
+                        yield header
+                        pending_header = None
+                else:
+                    pending_header = None
                 
-                try:
-                    def next_wrapper(gen):
-                        try:
-                            return next(gen), None
-                        except StopIteration:
-                            return None, "STOP"
+                # Process audio chunks
+                while True:
+                    result, status = await asyncio.to_thread(_next_wrapper, generator)
+                    if status == "STOP":
+                        break
                     
-                    while True:
-                        result, status = await asyncio.to_thread(next_wrapper, generator)
-                        if status == "STOP":
-                            break
-                        
-                        gs, ps, audio_array = result
+                    gs, ps, audio_array = result
 
-                        if http_request and await http_request.is_disconnected():
-                            logger.info("[SSE] Client disconnected, stopping generation")
-                            break
+                    if http_request and await http_request.is_disconnected():
+                        logger.info(f"{log_prefix} Client disconnected, stopping generation")
+                        break
 
-                        if audio_array is None:
-                            logger.warning("Received None audio array, skipping")
-                            continue
+                    if audio_array is None:
+                        logger.warning("Received None audio array, skipping")
+                        continue
 
-                        audio_bytes = _encode_audio(audio_array)
-                        
-                        # For WAV format, prepend header to first chunk
-                        if response_format == "wav" and not header_sent:
-                            wav_header = _create_wav_header(TTS_SAMPLE_RATE)
-                            audio_bytes_with_header = wav_header + audio_bytes
-                            logger.info(f"[SSE] First chunk with WAV header ({len(wav_header)} bytes) + audio ({len(audio_bytes)} bytes)")
-                            header_sent = True
-                        else:
-                            audio_bytes_with_header = audio_bytes
-                        
-                        audio_base64 = base64.b64encode(audio_bytes_with_header).decode('utf-8')
+                    # Encode chunk
+                    audio_bytes = encoder.encode_chunk(audio_array)
+                    
+                    # Prepend header if pending (SSE mode)
+                    if pending_header:
+                        audio_bytes = pending_header + audio_bytes
+                        pending_header = None
 
-                        chunk_count += 1
-                        samples = len(audio_array) if audio_array is not None else 0
-                        logger.info(f"[SSE] Sending chunk #{chunk_count}, size={len(audio_base64)} chars, samples={samples}")
+                    if not audio_bytes:
+                        continue
+                    
+                    chunk_count += 1
+                    
+                    if is_sse:
+                        audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+                        logger.info(f"{log_prefix} Sending chunk #{chunk_count}, size={len(audio_base64)} chars")
+                        yield f"data: {json.dumps({'type': 'speech.audio.delta', 'audio': audio_base64})}\n\n"
+                    else:
+                        logger.info(f"{log_prefix} Sending chunk #{chunk_count}, size={len(audio_bytes)} bytes")
+                        yield audio_bytes
 
-                        delta_event = {
-                            "type": "speech.audio.delta",
-                            "audio": audio_base64
-                        }
-                        yield f"data: {json.dumps(delta_event)}\n\n"
+                # Finalize encoder
+                final_bytes = encoder.finalize()
+                if final_bytes:
+                    if is_sse:
+                        audio_base64 = base64.b64encode(final_bytes).decode('utf-8')
+                        yield f"data: {json.dumps({'type': 'speech.audio.delta', 'audio': audio_base64})}\n\n"
+                    else:
+                        yield final_bytes
 
-                    logger.info(f"[SSE] Sending done event, total_chunks={chunk_count}")
+                # SSE done event
+                if is_sse:
+                    logger.info(f"{log_prefix} Sending done event, total_chunks={chunk_count}")
                     done_event = {
                         "type": "speech.audio.done",
                         "usage": {
@@ -164,95 +203,11 @@ async def synthesize_streaming(
                     }
                     yield f"data: {json.dumps(done_event)}\n\n"
 
-                finally:
-                    logger.info(f"[SSE] Generator cleanup, sent {chunk_count} chunks")
+            finally:
+                logger.info(f"{log_prefix} Generator cleanup, sent {chunk_count} chunks")
 
-            return sse_generator()
-        else:
-            async def audio_generator():
-                chunk_count = 0
-                header_sent = False
-                try:
-                    # If WAV is requested, send the header first
-                    if response_format == "wav" and not header_sent:
-                        wav_header = _create_wav_header(TTS_SAMPLE_RATE)
-                        logger.info(f"[AUDIO] Sending WAV header ({len(wav_header)} bytes)")
-                        yield wav_header
-                        header_sent = True
-
-                    def next_wrapper(gen):
-                        try:
-                            return next(gen), None
-                        except StopIteration:
-                            return None, "STOP"
-                    
-                    while True:
-                        result, status = await asyncio.to_thread(next_wrapper, generator)
-                        if status == "STOP":
-                            break
-                        
-                        gs, ps, audio_array = result
-
-                        if http_request and await http_request.is_disconnected():
-                            logger.info("[AUDIO] Client disconnected, stopping generation")
-                            break
-
-                        if audio_array is None:
-                            logger.warning("Received None audio array, skipping")
-                            continue
-
-                        audio_bytes = _encode_audio(audio_array)
-                        chunk_count += 1
-                        samples = len(audio_array) if audio_array is not None else 0
-                        logger.info(f"[AUDIO] Sending chunk #{chunk_count}, size={len(audio_bytes)} bytes, samples={samples}")
-                        yield audio_bytes
-                finally:
-                    logger.info(f"[AUDIO] Generator cleanup, sent {chunk_count} chunks")
-
-            return audio_generator()
+        return streaming_generator()
 
     except Exception as e:
         logger.error(f"Error during streaming synthesis setup: {e}", exc_info=True)
         raise SynthesisError(f"Failed to setup streaming synthesis: {str(e)}")
-
-def _encode_audio(audio_array) -> bytes:
-    """
-    Encode float32 audio array to 16-bit PCM bytes.
-    Handles both numpy arrays and PyTorch tensors.
-    """
-    if hasattr(audio_array, 'numpy'):
-        audio_array = audio_array.numpy()
-    
-    audio = (audio_array * 32767).clip(-32768, 32767).astype(np.int16)
-    return audio.tobytes()
-
-def _create_wav_header(sample_rate: int) -> bytes:
-    """
-    Create a 44-byte WAV header for CD-quality audio (16-bit PCM, Mono).
-    Sets length fields to 0 for unknown length/streaming.
-    """
-    num_channels = 1
-    bits_per_sample = 16
-    byte_rate = sample_rate * num_channels * (bits_per_sample // 8)
-    block_align = num_channels * (bits_per_sample // 8)
-    
-    # RIFF chunk
-    header = b'RIFF'
-    header += struct.pack('<I', 0)  # ChunkSize
-    header += b'WAVE'
-    
-    # fmt sub-chunk
-    header += b'fmt '
-    header += struct.pack('<I', 16)  # Subchunk1Size (16 for PCM)
-    header += struct.pack('<H', 1)   # AudioFormat (1 for PCM)
-    header += struct.pack('<H', num_channels)
-    header += struct.pack('<I', sample_rate)
-    header += struct.pack('<I', byte_rate)
-    header += struct.pack('<H', block_align)
-    header += struct.pack('<H', bits_per_sample)
-    
-    # data sub-chunk
-    header += b'data'
-    header += struct.pack('<I', 0)  # Subchunk2Size
-    
-    return header

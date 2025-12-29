@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test STT with OpenAI client."""
+"""Test MP3 STT with OpenAI client."""
 
 from openai import OpenAI
 import os
@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 def test_stt():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(script_dir, "output")
-    audio_file = os.path.join(output_dir, "test_tts_service.wav")
+    audio_file = os.path.join(output_dir, "test_tts_mp3.mp3")
     
     logger.info(f"Reading audio file: {audio_file}")
     
     if not os.path.exists(audio_file):
-        logger.error(f"The '{audio_file}' file was not found. Run test_tts_service.py first.")
+        logger.error(f"The '{audio_file}' file was not found. Run test_tts_mp3.py first.")
         return False
     
     client = OpenAI(

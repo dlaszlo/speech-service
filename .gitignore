@@ -47,3 +47,4 @@ models/
 *.pt
 *.pth
 *.onnx
+tests/output/

@@ -7,10 +7,9 @@ class TTSGenerationRequest(BaseModel):
     input: str
     voice: Union[str, dict]
 
-    response_format: Literal["wav", "pcm"] = "wav"
-    stream: bool = False
+    response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = "mp3"
     speed: float = 1.0
-    stream_format: Literal["audio", "sse"] = "audio"
+    stream_format: Optional[Literal["audio", "sse"]] = None
     instructions: Optional[str] = None
 
     @validator('input')

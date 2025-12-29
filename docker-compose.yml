@@ -3,35 +3,8 @@ services:
   # OPTION 1: x86 GPU
   # Uses local image: speech-service:gpu-latest
   # ---------------------------------------------------------------------------
-  # speech-service:
-  #   image: dlaszlo/speech-service:gpu-latest
-  #   container_name: speech-service
-  #   ports:
-  #     - "8000:8000"
-  #   volumes:
-  #     - huggingface_cache:/data/huggingface
-  #   environment:
-  #     - STT_MODEL_NAME=Systran/faster-distil-whisper-small.en
-  #     # Compute type: float16 or int8_float16 for GPU recommended
-  #     - STT_COMPUTE_TYPE=int8_float16
-  #     - TTS_MODEL_NAME=hexgrad/Kokoro-82M
-  #     - TTS_LANG_CODE=a
-  #     - HF_HOME=/data/huggingface
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: 1
-  #             capabilities: [gpu]
-  #   restart: unless-stopped
-
-  # ---------------------------------------------------------------------------
-  # OPTION 2: CPU (supports both x86_64 and ARM64)
-  # Uses multi-arch image: dlaszlo/speech-service:cpu-latest
-  # ---------------------------------------------------------------------------
   speech-service:
-    image: dlaszlo/speech-service:cpu-latest
+    image: dlaszlo/speech-service:gpu-latest
     container_name: speech-service
     ports:
       - "8000:8000"
@@ -39,12 +12,39 @@ services:
       - huggingface_cache:/data/huggingface
     environment:
       - STT_MODEL_NAME=Systran/faster-distil-whisper-small.en
-      # Compute type: int8 is best for CPU
-      - STT_COMPUTE_TYPE=int8
+      # Compute type: float16 or int8_float16 for GPU recommended
+      - STT_COMPUTE_TYPE=int8_float16
       - TTS_MODEL_NAME=hexgrad/Kokoro-82M
       - TTS_LANG_CODE=a
       - HF_HOME=/data/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # OPTION 2: CPU (supports both x86_64 and ARM64)
+  # Uses multi-arch image: dlaszlo/speech-service:cpu-latest
+  # ---------------------------------------------------------------------------
+  # speech-service:
+  #   image: dlaszlo/speech-service:cpu-latest
+  #   container_name: speech-service
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - huggingface_cache:/data/huggingface
+  #   environment:
+  #     - STT_MODEL_NAME=Systran/faster-distil-whisper-small.en
+  #     # Compute type: int8 is best for CPU
+  #     - STT_COMPUTE_TYPE=int8
+  #     - TTS_MODEL_NAME=hexgrad/Kokoro-82M
+  #     - TTS_LANG_CODE=a
+  #     - HF_HOME=/data/huggingface
+  #   restart: unless-stopped
 
   # ---------------------------------------------------------------------------
   # OPTION 3: ARM CPU (Apple Silicon / Raspberry Pi)

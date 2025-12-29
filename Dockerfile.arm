@@ -13,6 +13,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         espeak-ng \
         curl \
+        ffmpeg \
         # Build tools often needed for ARM wheels if pre-built ones miss
         build-essential \
         && \

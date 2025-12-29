@@ -41,7 +41,7 @@ async def create_speech(request: TTSGenerationRequest, http_request: Request):
 
     voice = _normalize_voice(request.voice)
 
-    supported_formats = ["wav", "pcm"]
+    supported_formats = ["wav", "pcm", "mp3", "aac", "opus", "flac"]
 
     if request.response_format not in supported_formats:
         logger.warning(f"[TTS] Rejected request: unsupported format '{request.response_format}'")
@@ -51,51 +51,56 @@ async def create_speech(request: TTSGenerationRequest, http_request: Request):
         )
 
     try:
-        # Use stream_format to decide if streaming
-        if request.stream_format == "sse":
-            effective_stream_format = request.stream_format
+        media_type = {
+            "wav": "audio/wav",
+            "pcm": "audio/pcm",
+            "mp3": "audio/mpeg",
+            "aac": "audio/aac",
+            "opus": "audio/ogg",
+            "flac": "audio/flac",
+        }.get(request.response_format, "audio/wav")
+
+        # Determine stream format (default to "audio" if not specified)
+        stream_format = request.stream_format or "audio"
+
+        if stream_format == "sse":
+            logger.info(f"[TTS] SSE streaming synthesis requested: format={request.response_format}")
             
-            logger.info(f"[TTS] Streaming synthesis, format={request.response_format}, mode={effective_stream_format}")
             stream_generator = await synthesize_streaming(
                 text=request.input,
                 voice=voice,
                 response_format=request.response_format,
-                stream_format=effective_stream_format,
+                stream_format="sse",
                 http_request=http_request
             )
-
-            if effective_stream_format == "sse":
-                logger.info("[TTS] Returning SSE streaming response")
-                return StreamingResponse(
-                    stream_generator,
-                    media_type="text/event-stream",
-                    headers={
-                        "Cache-Control": "no-cache",
-                        "Connection": "keep-alive",
-                    }
-                )
-            else:
-                media_type = {
-                    "wav": "audio/wav",
-                    "pcm": "audio/pcm",
-                }.get(request.response_format, "audio/wav")
-
-                logger.info(f"[TTS] Returning audio streaming response with media_type={media_type}")
-                return StreamingResponse(
-                    stream_generator,
-                    media_type=media_type
-                )
-        else:
-            logger.info(f"[TTS] Non-streaming synthesis, format={request.response_format}")
-            audio_bytes = await synthesize(
-                text=request.input, 
-                voice=voice, 
-                response_format=request.response_format
-            )
-            logger.info(f"[TTS] Completed synthesis, size={len(audio_bytes)} bytes")
             
-            media_type = "audio/pcm" if request.response_format == "pcm" else "audio/wav"
-            return StreamingResponse(iter([audio_bytes]), media_type=media_type)
+            return StreamingResponse(
+                stream_generator,
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                }
+            )
+        
+        else:
+            # Default to audio streaming (chunked transfer encoding)
+            # This covers both explicit stream_format="audio" and implicit requests (standard OpenAI client)
+            logger.info(f"[TTS] Audio streaming synthesis requested: format={request.response_format}")
+            
+            stream_generator = await synthesize_streaming(
+                text=request.input,
+                voice=voice,
+                response_format=request.response_format,
+                stream_format="audio",
+                http_request=http_request
+            )
+            
+            return StreamingResponse(
+                stream_generator,
+                media_type=media_type,
+                headers={"Transfer-Encoding": "chunked"}
+            )
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

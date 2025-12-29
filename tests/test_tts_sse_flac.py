@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test TTS streaming with SSE events."""
+"""Test FLAC TTS streaming with SSE events."""
 
 import requests
 import json
@@ -13,13 +13,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(threadName)s] %(n
 logger = logging.getLogger(__name__)
 
 def test_tts_streaming():
-    """Test TTS streaming with SSE format and verify continuous streaming."""
+    """Test FLAC TTS streaming with SSE format and verify continuous streaming."""
     
     base_url = "http://localhost:8000"
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(script_dir, "output")
-    output_file = os.path.join(output_dir, "test_tts_service_streaming.wav")
+    output_file = os.path.join(output_dir, "test_tts_streaming_flac.flac")
     
     logger.info(f"Generating audio file: {output_file}")
     
@@ -36,7 +36,7 @@ def test_tts_streaming():
     
     # Read text from file and truncate to desired length
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    text_file_path = os.path.join(script_dir, "..", "test_text.txt")
+    text_file_path = os.path.join(script_dir, "test_text.txt")
     
     try:
         with open(text_file_path, "r", encoding="utf-8") as f:
@@ -54,9 +54,8 @@ def test_tts_streaming():
         "model": "hexgrad/Kokoro-82M",
         "input": long_text,
         "voice": "af_sarah",
-        "response_format": "wav",
-        "stream_format": "sse",
-        "stream": True
+        "response_format": "flac",
+        "stream_format": "sse"
     }
     
     logger.info("Sending streaming TTS request...")
@@ -117,11 +116,9 @@ def test_tts_streaming():
                             logger.error(f"Failed to parse JSON: {e}")
                             continue
 
-        logger.info(f"Audio saved to: {output_file} (WAV format from server chunks)")
+        logger.info(f"Audio saved to: {output_file} (FLAC format from server chunks)")
         combined_audio = b''.join(audio_chunks)
         logger.info(f"File size: {len(combined_audio)} bytes")
-        num_samples = (len(combined_audio) - 44) // 2
-        logger.info(f"Duration: {num_samples / 24000:.2f} seconds")
 
         logger.info("=" * 60)
         logger.info("Test Results:")
