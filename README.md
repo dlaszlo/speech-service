@@ -198,36 +198,47 @@ You can switch the TTS language or model version at runtime.
 
 ## Testing
 
-The project uses `pytest` for testing. The tests cover:
+The project uses `pytest` for testing. The tests run **in-process** using `FastAPI TestClient`, so you **do not** need to start the server manually before running them.
+
+The tests cover:
 *   **STT**: Transcription validation and edge cases.
 *   **TTS**: Audio generation for all supported formats and streaming (Chunked & SSE).
 *   **Edge Cases**: Error handling, invalid inputs, and boundary conditions.
 
-### 1. Install Test Dependencies
+### Quick Run
+The easiest way to run the full test suite (handling virtualenv and dependencies automatically) is:
+
 ```bash
-pip install -r requirements/tests.txt
+./bin/run_tests.sh
 ```
 
-### 2. Run All Tests
-```bash
-pytest tests/
-```
+### Manual Test Execution
 
-### 3. Run Specific Tests
-*   **STT Tests**:
+1.  **Install Test Dependencies**:
     ```bash
-    pytest tests/test_stt.py
-    pytest tests/test_stt_edge_cases.py
+    pip install -r requirements/tests.txt
     ```
-*   **TTS Basic Tests**:
+
+2.  **Run All Tests**:
     ```bash
-    pytest tests/test_tts_basic.py
+    pytest tests/
     ```
-*   **TTS Streaming Tests**:
-    ```bash
-    pytest tests/test_tts_audio_streaming.py
-    pytest tests/test_tts_sse_streaming.py
-    ```
+
+3.  **Run Specific Tests**:
+    *   **STT Tests**:
+        ```bash
+        pytest tests/test_stt.py
+        pytest tests/test_stt_edge_cases.py
+        ```
+    *   **TTS Basic Tests**:
+        ```bash
+        pytest tests/test_tts_basic.py
+        ```
+    *   **TTS Streaming Tests**:
+        ```bash
+        pytest tests/test_tts_audio_streaming.py
+        pytest tests/test_tts_sse_streaming.py
+        ```
 
 ## Links
 
