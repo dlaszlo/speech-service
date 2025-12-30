@@ -184,20 +184,29 @@ curl -X POST "http://localhost:8000/v1/models/stt/download" \
      -d '{"model_id": "ctranslate2-expert/faster-whisper-medium.en"}'
 ```
 
-### Text-to-Speech (TTS)
+ ### Text-to-Speech (TTS)
 
-#### Generate Speech from Text
-This endpoint is compatible with the OpenAI TTS API. It generates a WAV audio file.
+ #### Generate Speech from Text
+ This endpoint is compatible with OpenAI TTS API. It generates audio in various formats.
 
- ```bash
-  curl -X POST "http://localhost:8000/v1/audio/speech" \
-      -H "Content-Type: application/json" \
-      -d '{"model": "hexgrad/Kokoro-82M", "input": "The quick brown fox jumps over the lazy dog. This is a test of the English text to speech generation.", "voice": "af_sarah"}' \
-      --output test_speech.wav
-  ```
- *   `input`: The text to be synthesized.
- *   `voice`: The voice to use (e.g., `af_sarah`).
- *   `--output test_speech.wav`: Saves the resulting audio to a file named `test_speech.wav`.
+```bash
+    curl -X POST "http://localhost:8000/v1/audio/speech" \
+        -H "Content-Type: application/json" \
+        -d '{"model": "hexgrad/Kokoro-82M", "input": "The quick brown fox jumps over the lazy dog. This is a test of the English text to speech generation.", "voice": "af_sarah", "response_format": "mp3", "speed": 1.0}' \
+        --output test_speech.mp3
+```
+
+**Request Parameters:**
+* `model` (Required): The model to use (e.g., `hexgrad/Kokoro-82M`).
+* `input` (Required): The text to be synthesized. Maximum length: 4096 characters.
+* `voice` (Required): The voice to use (e.g., `af_sarah`, `af_heart`, `am_michael`, etc.).
+* `response_format` (Optional): The audio format. Supported formats: `mp3`, `opus`, `aac`, `flac`, `wav`, `pcm`. Default: `mp3`.
+* `speed` (Optional): The speed of generated audio. Range: 0.25 to 4.0. Default: 1.0.
+  -  Values below 1.0 produce slower speech (e.g., 0.5 = half speed, 0.25 = quarter speed).
+  -  Values above 1.0 produce faster speech (e.g., 2.0 = double speed, 4.0 = quadruple speed).
+* `stream_format` (Optional): The streaming format. Supported: `audio` (default), `sse` (Server-Sent Events).
+* `instructions` (Optional): Additional voice control instructions.
+  -  **Note**: This parameter is accepted for OpenAI compatibility but is **not supported**.
 
 #### Dynamically Load a Different TTS Model/Language
 You can switch the TTS language or model version at runtime.
@@ -216,10 +225,10 @@ You can switch the TTS language or model version at runtime.
 
 The project uses `pytest` for testing. The tests run **in-process** using `FastAPI TestClient`, so you **do not** need to start the server manually before running them.
 
-The tests cover:
-*   **STT**: Transcription validation and edge cases.
-*   **TTS**: Audio generation for all supported formats and streaming (Chunked & SSE).
-*   **Edge Cases**: Error handling, invalid inputs, and boundary conditions.
+ The tests cover:
+ *   **STT**: Transcription validation and edge cases.
+ *   **TTS**: Audio generation for all supported formats and streaming (Chunked & SSE).
+ *   **Edge Cases**: Error handling, invalid inputs, and boundary conditions.
 
 ### Quick Run
 The easiest way to run the full test suite (handling virtualenv and dependencies automatically) is:
@@ -260,4 +269,6 @@ The easiest way to run the full test suite (handling virtualenv and dependencies
 
 *   **Docker Hub**: [dlaszlo/speech-service](https://hub.docker.com/r/dlaszlo/speech-service)
 *   **GitHub Repository**: [dlaszlo/speech-service](https://github.com/dlaszlo/speech-service)
+*   **OpenAI: Text to speech**: [OpenAI - Text to speech API](https://platform.openai.com/docs/guides/text-to-speech)
+*   **OpenAI: Speech to text**: [OpenAI - Speech to text API](https://platform.openai.com/docs/guides/speech-to-text)
 

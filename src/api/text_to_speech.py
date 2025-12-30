@@ -29,7 +29,10 @@ async def create_speech(request: TTSGenerationRequest, http_request: Request):
     """
     OpenAI-compatible text-to-speech endpoint with streaming support.
     """
-    logger.info(f"[TTS] Received request: input_length={len(request.input)}, voice={request.voice}, response_format={request.response_format}, stream_format={request.stream_format}")
+    if request.instructions:
+        logger.warning("[TTS] 'instructions' parameter provided but not supported.")
+    
+    logger.info(f"[TTS] Received request: input_length={len(request.input)}, voice={request.voice}, response_format={request.response_format}, stream_format={request.stream_format}, speed={request.speed}")
 
     if len(request.input.strip()) == 0:
         logger.warning("[TTS] Rejected request: empty input text")
@@ -65,6 +68,7 @@ async def create_speech(request: TTSGenerationRequest, http_request: Request):
                 text=request.input,
                 voice=voice,
                 response_format=request.response_format,
+                speed=request.speed,
                 stream_format="sse",
                 http_request=http_request
             )
@@ -87,6 +91,7 @@ async def create_speech(request: TTSGenerationRequest, http_request: Request):
                 text=request.input,
                 voice=voice,
                 response_format=request.response_format,
+                speed=request.speed,
                 stream_format="audio",
                 http_request=http_request
             )

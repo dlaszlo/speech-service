@@ -26,14 +26,14 @@ def _next_wrapper(gen):
     except StopIteration:
         return None, "STOP"
 
-async def synthesize(text: str, voice: str, response_format: str = "wav") -> bytes:
+async def synthesize(text: str, voice: str, response_format: str = "wav", speed: float = 1.0) -> bytes:
     if not tts_model_state.pipeline:
         logger.error("TTS requested but no model is loaded.")
         raise ModelNotLoadedError("TTS model is not loaded.")
 
     try:
         audio_bytes = await asyncio.wait_for(
-            asyncio.to_thread(_synthesize_sync, text, voice, response_format),
+            asyncio.to_thread(_synthesize_sync, text, voice, response_format, speed),
             timeout=TTS_SYNTHESIS_TIMEOUT_SECONDS
         )
         return audio_bytes
@@ -47,7 +47,7 @@ async def synthesize(text: str, voice: str, response_format: str = "wav") -> byt
         logger.error(f"Error during speech synthesis wrapper: {e}", exc_info=True)
         raise SynthesisError(f"Speech synthesis failed: {str(e)}")
 
-def _synthesize_sync(text: str, voice: str, response_format: str) -> bytes:
+def _synthesize_sync(text: str, voice: str, response_format: str, speed: float = 1.0) -> bytes:
     try:
         logger.info(f"[TTS] Synthesizing speech: text_length={len(text)}, voice='{voice}', format='{response_format}'")
 
@@ -55,8 +55,8 @@ def _synthesize_sync(text: str, voice: str, response_format: str) -> bytes:
         all_audio_arrays = []
 
         try:
-            logger.info("[TTS] Calling pipeline generator")
-            generator = tts_model_state.pipeline(text, voice=voice)
+            logger.info(f"[TTS] Calling pipeline generator with speed={speed}")
+            generator = tts_model_state.pipeline(text, voice=voice, speed=speed)
             logger.info("[TTS] Consuming generator")
             
             for _, _, audio_array in generator:
@@ -115,6 +115,7 @@ async def synthesize_streaming(
     text: str,
     voice: str,
     response_format: str = "wav",
+    speed: float = 1.0,
     stream_format: str = "audio",
     http_request=None
 ):
@@ -126,7 +127,7 @@ async def synthesize_streaming(
         logger.error("TTS requested but no model is loaded.")
         raise ModelNotLoadedError("TTS model is not loaded.")
 
-    logger.info(f"Starting streaming TTS synthesis: text_length={len(text)}, voice='{voice}', response_format='{response_format}', stream_format='{stream_format}'")
+    logger.info(f"Starting streaming TTS synthesis: text_length={len(text)}, voice='{voice}', response_format='{response_format}', speed={speed}, stream_format='{stream_format}'")
 
     pipeline = tts_model_state.pipeline
     is_sse = stream_format == "sse"
@@ -141,7 +142,7 @@ async def synthesize_streaming(
 
     try:
         try:
-            generator = pipeline(text, voice=voice)  # type: ignore
+            generator = pipeline(text, voice=voice, speed=speed)  # type: ignore
         except Exception as e:
             handle_generator_error(e, voice)
 

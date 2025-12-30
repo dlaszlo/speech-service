@@ -21,7 +21,14 @@ class TTSGenerationRequest(BaseModel):
             raise ValueError('Input text cannot be empty.')
         return v
 
+    @field_validator('speed')
+    @classmethod
+    def validate_speed(cls, v: float) -> float:
+        if v < 0.25 or v > 4.0:
+            raise ValueError('Speed must be between 0.25 and 4.0.')
+        return v
+
 class TTSModelLoadRequest(BaseModel):
     """Request model for loading a specific TTS model/language."""
-    lang_code: str # e.g., "a" for American English
+    lang_code: str
     model_id: str = "hexgrad/Kokoro-82M"
