@@ -26,6 +26,22 @@ This project provides a local, Dockerized REST API with OpenAI compatible endpoi
 *   **Docker Compose**: Part of modern Docker Desktop installations.
 *   **NVIDIA Container Toolkit** (for GPU support): If you wish to use a GPU, you must install the toolkit. [Official Installation Guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 
+### System Dependencies (Local Run Only)
+
+If you plan to run the application or tests locally (outside Docker), you must install the following system libraries:
+
+*   **Linux (Debian/Ubuntu)**:
+    ```bash
+    sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng
+    ```
+*   **macOS**:
+    ```bash
+    brew install ffmpeg espeak
+    ```
+*   **Windows**:
+    *   Install `ffmpeg` and ensure it's in your PATH.
+    *   Install `espeak-ng` and ensure it's in your PATH (and `PHONEMIZER_ESPEAK_LIBRARY` env var might be needed).
+
 ## How to Run
 
 Using `docker-compose` is the recommended way to run this service.
