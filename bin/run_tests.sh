@@ -27,17 +27,6 @@ echo "========================================================"
 echo "STARTING SPEECH SERVICE TEST SUITE"
 echo "========================================================"
 
-# Check if server is running and healthy
-HEALTH_URL="http://localhost:8000/health"
-if ! curl -s "$HEALTH_URL" | jq -e '.status == "healthy"' > /dev/null 2>&1; then
-    echo "Error: Server is not running or unhealthy at $HEALTH_URL"
-    echo "Please start the server with: ./bin/start.sh"
-    exit 1
-fi
-
-echo "Server is running and healthy"
-echo ""
-
 # Clean output directory
 OUTPUT_DIR="$PROJECT_ROOT/tests/output"
 echo "Cleaning output directory..."

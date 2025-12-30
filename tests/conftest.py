@@ -1,7 +1,11 @@
 import pytest
 import logging
 from pathlib import Path
-from openai import OpenAI, AsyncOpenAI
+from openai import OpenAI
+from fastapi.testclient import TestClient
+
+# Import the FastAPI app
+from src.main import app
 
 @pytest.fixture(scope="session", autouse=True)
 def configure_logging():
@@ -18,22 +22,34 @@ def output_dir():
     path.mkdir(exist_ok=True)
     return path
 
-@pytest.fixture
-def sync_client():
-    """Return synchronous OpenAI client."""
-    return OpenAI(base_url="http://localhost:8000/v1", api_key="dummy")
+@pytest.fixture(scope="session")
+def api_client():
+    """
+    Synchronous TestClient acting as the HTTP transport.
+    The OpenAI client uses this to make requests directly to the app.
+    Using context manager ensures lifespan events (startup/shutdown) are triggered.
+    """
+    with TestClient(app) as client:
+        yield client
 
 @pytest.fixture
-def async_client():
-    """Return asynchronous OpenAI client."""
-    return AsyncOpenAI(base_url="http://localhost:8000/v1", api_key="dummy")
+def sync_client(api_client):
+    """
+    Return synchronous OpenAI client configured to use TestClient.
+    This runs entirely in-process without a separate server.
+    """
+    return OpenAI(
+        base_url="http://testserver/v1",
+        api_key="dummy",
+        http_client=api_client
+    )
 
 @pytest.fixture
 def common_constants():
     """Return common test constants."""
     return {
-        "BASE_URL": "http://localhost:8000",
-        "API_URL": "http://localhost:8000/v1",
+        "BASE_URL": "http://testserver",
+        "API_URL": "http://testserver/v1",
         "API_KEY": "dummy",
         "TTS_MODEL": "hexgrad/Kokoro-82M",
         "STT_MODEL": "Systran/faster-distil-whisper-small.en",

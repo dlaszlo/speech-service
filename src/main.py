@@ -11,6 +11,13 @@ from .api.text_to_speech import router as tts_router
 from .api.system import router as system_router
 from .core.stt_dependencies import get_model_state
 from .core.tts_dependencies import get_tts_model_state
+from .core.config import (
+    DEFAULT_STT_MODEL,
+    DEFAULT_STT_COMPUTE_TYPE,
+    DEFAULT_TTS_MODEL,
+    DEFAULT_TTS_LANG_CODE,
+    DEFAULT_DEVICE
+)
 
 def setup_logging():
     logging.basicConfig(
@@ -22,8 +29,8 @@ def setup_logging():
 def validate_environment_variables() -> List[str]:
     warnings = []
     
-    stt_compute_type = os.getenv('STT_COMPUTE_TYPE', 'auto')
-    tts_lang_code = os.getenv('TTS_LANG_CODE', 'a')
+    stt_compute_type = os.getenv('STT_COMPUTE_TYPE', DEFAULT_STT_COMPUTE_TYPE)
+    tts_lang_code = os.getenv('TTS_LANG_CODE', DEFAULT_TTS_LANG_CODE)
     device_override = os.getenv('DEVICE_OVERRIDE')
     
     valid_compute_types = ['auto', 'int8', 'float16', 'int8_float16', 'float32']
@@ -53,8 +60,8 @@ async def lifespan(app: FastAPI):
             logger.warning(f"Environment validation: {warning}")
         
         # Load STT
-        stt_model_name = os.getenv("STT_MODEL_NAME", "Systran/faster-distil-whisper-small.en")
-        stt_compute_type = os.getenv("STT_COMPUTE_TYPE", "auto")
+        stt_model_name = os.getenv("STT_MODEL_NAME", DEFAULT_STT_MODEL)
+        stt_compute_type = os.getenv("STT_COMPUTE_TYPE", DEFAULT_STT_COMPUTE_TYPE)
         logger.info(f"Startup: Loading STT model: {stt_model_name} ({stt_compute_type})")
         try:
             await stt_model_state.load_model(model_id=stt_model_name, compute_type=stt_compute_type)
@@ -63,8 +70,8 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to load STT model: {e}")
 
         # Load TTS
-        tts_lang_code = os.getenv("TTS_LANG_CODE", "a")
-        tts_model_name = os.getenv("TTS_MODEL_NAME", "hexgrad/Kokoro-82M")
+        tts_lang_code = os.getenv("TTS_LANG_CODE", DEFAULT_TTS_LANG_CODE)
+        tts_model_name = os.getenv("TTS_MODEL_NAME", DEFAULT_TTS_MODEL)
         logger.info(f"Startup: Loading TTS model '{tts_model_name}' (lang: {tts_lang_code})")
         try:
             await tts_model_state.load_model(lang_code=tts_lang_code, model_id=tts_model_name)
@@ -108,7 +115,6 @@ from .core.exceptions import (
     ModelNotLoadedError,
     TranscriptionError,
     SynthesisError,
-    TimeoutError,
     TimeoutError,
     InvalidVoiceError as ServiceInvalidVoiceError
 )

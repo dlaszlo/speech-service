@@ -13,3 +13,10 @@ TTS_SAMPLE_RATE = 24000
 AUDIO_BITRATE_MP3 = 128
 AUDIO_BITRATE_AAC = 128
 AUDIO_BITRATE_OPUS = 96
+
+# --- Default Model Configuration ---
+DEFAULT_STT_MODEL = "Systran/faster-distil-whisper-small.en"
+DEFAULT_STT_COMPUTE_TYPE = "auto"
+DEFAULT_TTS_MODEL = "hexgrad/Kokoro-82M"
+DEFAULT_TTS_LANG_CODE = "a"
+DEFAULT_DEVICE = "cpu"  # Fallback if detection fails or for override check

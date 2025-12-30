@@ -9,9 +9,12 @@ logger = logging.getLogger(__name__)
 EXPECTED_KEYWORDS = ["fox", "dog", "quick", "brown"]
 
 @pytest.mark.parametrize("format", ["wav", "mp3"])
-def test_stt(format, sync_client, output_dir, common_constants):
+def test_stt(format, sync_client, output_dir, common_constants, caplog):
     """Test STT transcription for WAV and MP3 formats."""
-    
+    caplog.clear()
+    assert len(caplog.records) == 0, "Caplog should be empty at the start of the test"
+    caplog.set_level(logging.INFO)
+
     audio_file = output_dir / f"test_tts.{format}"
     transcription_file = output_dir / f"test_stt_{format}.txt"
     
@@ -51,6 +54,13 @@ def test_stt(format, sync_client, output_dir, common_constants):
         
         assert validate_transcription(response.text, min_length=20, expected_keywords=EXPECTED_KEYWORDS), "Transcription validation failed"
         
+        # Verify server-side execution via logs
+        stt_logs = [rec.message for rec in caplog.records if "[STT]" in rec.message]
+        logger.info(f"Server-side STT events found: {len(stt_logs)}")
+        assert len(stt_logs) > 0, "No STT server-side logs found"
+        assert any("Starting audio transcription process" in log for log in stt_logs)
+        assert any("Transcription complete" in log for log in stt_logs)
+
     except Exception as e:
         logger.error(f"Error occurred: {e}")
         raise
